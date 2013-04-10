@@ -46,6 +46,7 @@ Player::bsp_t PlayerFactory::create(const std::string transport_type) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("PlayerFactory");
 	return this->create(1);
 }
+
 Player::bsp_t PlayerFactory::create(unsigned int transport_type) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("PlayerFactory");
 	Player::bsp_t player;

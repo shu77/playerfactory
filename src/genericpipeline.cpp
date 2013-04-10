@@ -5,6 +5,7 @@
  *      Author: jeongseok.kim
  */
 
+#include <gst/gst.h>
 #include <glibmm-utils/glibmm-utils.h>
 #include <pipeline/generic/genericpipeline.hpp>
 

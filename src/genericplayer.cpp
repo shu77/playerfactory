@@ -28,6 +28,7 @@ void GenericPlayer::playSpi(int rate) {
 
 void GenericPlayer::loadSpi() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
+
 	Pipeline::bsp_t pipeline = getPipeline();
 	pipeline.reset(new GenericPipeline());
 	setPipeline(pipeline);
@@ -39,3 +40,4 @@ void GenericPlayer::unloadSpi() {
 	Pipeline::bsp_t pipeline = getPipeline();
 	pipeline->unload();
 }
+

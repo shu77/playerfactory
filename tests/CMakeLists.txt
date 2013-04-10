@@ -1,5 +1,6 @@
 include_directories (${pf_SOURCE_DIR}/include)
 
+include_directories(${GStreamer_INCLUDE_DIRS})
 include_directories(${Glibmm_INCLUDE_DIRS})
 include_directories(${GlibmmUtils_INCLUDE_DIRS})
 
