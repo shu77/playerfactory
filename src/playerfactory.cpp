@@ -17,6 +17,19 @@ boost::weak_ptr<PlayerFactory> PlayerFactory::_internal_ptr;
 PlayerFactory::PlayerFactory() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("PlayerFactory");
 	LOG_D("created", "PlayerFactory");
+    GError *pErr = NULL;
+    /* Initialize GStreamer */
+    if (!g_thread_supported())
+    {
+        g_thread_init(NULL);
+    }
+
+    if (!gst_init_check(NULL, NULL, &pErr))
+    {
+        LOG_D("Error:" "%s\n", pErr->message);
+        g_error_free(pErr);
+		//return HOA_ERROR; //TODO: check fail case.
+    }
 }
 
 PlayerFactory::~PlayerFactory() {

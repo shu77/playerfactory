@@ -10,6 +10,12 @@
 
 #include <boost/shared_ptr.hpp>
 
+//#include <gst/video/video.h>
+//#include <gst/app/gstappsrc.h>
+//#include <gst/app/gstappbuffer.h>
+#include <glib.h>
+#include <gst/gst.h>
+
 #include <pipeline/pipeline.hpp>
 #include <pipeline/event/playeventlistener.hpp>
 
@@ -27,7 +33,8 @@ public:
 
 	virtual void addEventListener(PlayEventListener::bsp_t listener) = 0;
 
-	virtual void load() = 0;
+	virtual void load(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType) = 0;
+	virtual void load(MEDIA_CLIPOPT_T *clipOpt) = 0;
 	virtual void unload() = 0;
 	virtual void play(int rate = 1) = 0;
 	/*
@@ -36,6 +43,19 @@ public:
 	virtual void setProperty(Pipeline::bsp_t pipeline) = 0;
 	virtual void getProperty(Pipeline::bsp_t pipeline) = 0;
 	*/
+
+    virtual gint64 duration() const = 0;           /* get duration */
+    virtual gint64 position() const = 0;           /* get current position */
+    virtual gint volume() const = 0;               /* get current volume */
+	virtual gboolean isMuted() const = 0;          /* get mute info */
+	virtual gboolean isAudioAvailable() const = 0; /* get audio track avilable */
+	virtual gboolean isVideoAvailable() const = 0; /* get video track avilable */
+	virtual gboolean isSeekable() const = 0;       /* get seekable status */
+	virtual gfloat playbackRate() const = 0;       /* get current playback rate */
+
+	//virtual Error error() const;
+	virtual GString errorString() const = 0;
+
 };
 }
 

@@ -8,7 +8,7 @@
 #ifndef PLAYERFACTORY_HPP_
 #define PLAYERFACTORY_HPP_
 
-#include <string>
+#include <string.h>
 
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
