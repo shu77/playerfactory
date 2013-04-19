@@ -55,6 +55,7 @@ public:
 
 	//virtual Error error() const;
 	virtual GString errorString() const = 0;
+    virtual bool setGstreamerDebugLevel(guint select, gchar *category, GstDebugLevel level) = 0;
 
 };
 }

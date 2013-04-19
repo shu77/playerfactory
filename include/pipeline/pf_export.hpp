@@ -233,6 +233,67 @@ typedef enum MEDIA_FORMAT
     MEDIA_FORMAT_VIDEO_MASK    = (0xFF<<8),    /**< Video file format mask */
 } MEDIA_FORMAT_T;
 
+
+/**
+ * This enumeration describes video codec of media.
+ *
+ */
+typedef enum MEDIA_CODEC_VIDEO
+{
+    MEDIA_VIDEO_NONE        = 0x0000,       /**< No Video */
+    MEDIA_VIDEO_ANY         = 0x0000,       /**< Any Video codec */
+
+    MEDIA_VIDEO_MPEG1       = 0x0100,       /**< mpeg1 codec */
+    MEDIA_VIDEO_MPEG2       = 0x0200,       /**< mpeg2 codec */
+    MEDIA_VIDEO_MPEG4       = 0x0300,       /**< mpeg4 codec */
+    MEDIA_VIDEO_MJPEG       = 0x0400,       /**< mjpeg codec */
+    MEDIA_VIDEO_H264        = 0x0500,       /**< h.264 codec */
+    MEDIA_VIDEO_REALVIDEO   = 0x0600,       /**< real video codec */
+    MEDIA_VIDEO_WMV         = 0x0700,       /**< wmv codec */
+    MEDIA_VIDEO_YUY2        = 0x0800,       /**< YUY2 (YUV422) format */
+    MEDIA_VIDEO_VC1         = 0x0900,       /**< VC1 codec */
+    MEDIA_VIDEO_DIVX        = 0x0A00,       /**< Divx codec */
+    MEDIA_VIDEO_MVC         = 0x0B00,       /**< MVC codec */
+    MEDIA_VIDEO_H263        = 0x0C00,       /**< h.263 codec */  // 추후 값 조정 필요.
+    MEDIA_VIDEO_VP8         = 0x0D00,       /**< On2 VP8 codec */
+
+    MEDIA_VIDEO_NOT_SUPPORTED = 0xF000,
+
+    MEDIA_VIDEO_MASK    = 0xFF00        /**< Video codec mask */
+} MEDIA_CODEC_VIDEO_T;
+
+/**
+ * This enumeration describes audio codec of media.
+ *
+ */
+typedef enum MEDIA_CODEC_AUDIO
+{
+    MEDIA_AUDIO_NONE    = 0x0000,       /**< No Audio */
+    MEDIA_AUDIO_ANY     = 0x0000,       /**< Any Audio codec */
+
+    MEDIA_AUDIO_MP3     = 0x0001,       /**< mp3 codec */
+    MEDIA_AUDIO_AC3     = 0x0002,       /**< ac3 codec */
+    MEDIA_AUDIO_MPEG    = 0x0003,       /**< mpeg codec */
+    MEDIA_AUDIO_AAC     = 0x0004,       /**< aac codec */
+    MEDIA_AUDIO_CDDA    = 0x0005,       /**< cdda codec */      //not implemented in LMF
+    MEDIA_AUDIO_PCM     = 0x0006,       /**< pcm codec */
+    MEDIA_AUDIO_LBR     = 0x0007,       /**< lbr codec */       //not implemented in LMF
+    MEDIA_AUDIO_WMA     = 0x0008,       /**< wma codec */
+    MEDIA_AUDIO_DTS     = 0x0009,       /**< dts codec */
+    MEDIA_AUDIO_AC3PLUS = 0x000A,       /**< ac3 plus codec */
+    MEDIA_AUDIO_RA      = 0x000B,       /**< ra  plus codec */
+    MEDIA_AUDIO_AMR     = 0x000C,       /**< amr plus codec */
+    MEDIA_AUDIO_HEAAC   = 0x000D,       //not implemented in LMF (could not tell from AAC)
+    MEDIA_AUDIO_PCMWAV  = 0x000E,       //not implemented in LMF
+    MEDIA_AUDIO_WMA_PRO = 0x000F,       //not implemented in LMF
+    MEDIA_AUDIO_VORBIS  = 0x0010,       /**< vorbis codec */
+//  MEDIA_AUDIO_XPCM    = 0x0020,
+    MEDIA_AUDIO_NOT_SUPPORTED = 0x00F0,     /** Audio not supported */
+
+    MEDIA_AUDIO_MASK    = 0x00FF        /**< Audio codec mask */
+} MEDIA_CODEC_AUDIO_T;
+
+
 /**
  * Type definition of Media Codec.
  * MEDIA_CODEC_T는 MEDIA_CODEC_AUDIO_T, MEDIA_CODEC_VIDEO_T, MEDIA_CODEC_IMAGE_T의 ORing을 통해 나타낸다.
@@ -588,5 +649,15 @@ typedef struct MEDIA_STREAMOPT
     MEDIA_AUDIO_AAC_INFO_T                *pAacInfo;                  /**< MEDIA_EXT_STREAMOPT_TYPE_AAC case */
 
 }MEDIA_STREAMOPT_T;
+
+typedef enum {
+    MEDIA_OK    = 0,
+    MEDIA_ERROR    = -1,
+    MEDIA_NOT_IMPLEMENTED = -2,
+    MEDIA_NOT_SUPPORTED = -6,
+    MEDIA_BUFFER_FULL            = -7,    /**< 버퍼에 데이터가 가득 차있어 함수가 수행되지 않음  */
+    MEDIA_INVALID_PARAMS        = -3,    /**< 함수 인자에 잘못된 값이 들어있음 */
+    MEDIA_NOT_READY            = -11,    /**< API내 resource 아직 준비중 임 */
+} MEDIA_STATUS_T;
 
 #endif  /* _MEDIA_TYPES_C_H_ */

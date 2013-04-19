@@ -13,6 +13,9 @@ using namespace mediapipeline;
 
 GenericPlayer::GenericPlayer() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
+	Pipeline::bsp_t pipeline = getPipeline();
+	pipeline.reset(new GenericPipeline());
+	setPipeline(pipeline);
 }
 
 GenericPlayer::~GenericPlayer() {
@@ -50,8 +53,8 @@ void GenericPlayer::loadSpi(MEDIA_CLIPOPT_T *clipOpt){
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
 
 	Pipeline::bsp_t pipeline = getPipeline();
-	pipeline.reset(new GenericPipeline());
-	setPipeline(pipeline);
+//	pipeline.reset(new GenericPipeline()); //moved to create time..
+//	setPipeline(pipeline);
 	pipeline->load(clipOpt);
 }
 

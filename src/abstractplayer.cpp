@@ -106,3 +106,22 @@ GString AbstractPlayer::errorString() const
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
 	return this->errorStringSpi();
 }
+
+void AbstractPlayer::updateState(Pipeline::State newState)
+{
+    //Pipeline::MediaStatus oldStatus = m_mediaStatus;
+    Pipeline::State saveState = m_userInputState;
+
+	//TODO :: notify upper layer.
+
+}
+bool AbstractPlayer::setGstreamerDebugLevel(guint select, gchar *category, GstDebugLevel level){
+
+    LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
+	Pipeline::bsp_t pipeline = getPipeline();
+    if(pipeline)
+    {
+	    pipeline->setGstreamerDebugLevel(select, category, level);
+    }
+}
+

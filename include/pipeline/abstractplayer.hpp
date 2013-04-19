@@ -49,6 +49,8 @@ public:
 	GString errorString() const;
 
 	Pipeline::State m_userInputState; /* user input control status */
+    void updateState(Pipeline::State newState);
+    bool setGstreamerDebugLevel(guint select, gchar *category, GstDebugLevel level);
 
 
 public: // for derived players

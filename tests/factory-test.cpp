@@ -2,23 +2,68 @@
 
 #include <pipeline/playerfactory.hpp>
 #include <pipeline/player.hpp>
+#include <string>
+#include <string.h>
 
+using namespace std;
+
+#if 0
+typedef enum {
+  GST_LEVEL_NONE = 0,
+  GST_LEVEL_ERROR = 1,
+  GST_LEVEL_WARNING = 2,
+  GST_LEVEL_FIXME = 3,
+  GST_LEVEL_INFO = 4,
+  GST_LEVEL_DEBUG = 5,
+  GST_LEVEL_LOG = 6,
+  GST_LEVEL_TRACE = 7,
+  /* add more */
+  GST_LEVEL_MEMDUMP = 9,
+  /* add more */
+  GST_LEVEL_COUNT
+} GstDebugLevel;
+#endif
+
+static void* DEBUG_thread(void *ptr) /* make main loop for gstreamer bus callback */
+{
+    GMainLoop **loop = (GMainLoop **)ptr;
+    *loop = g_main_loop_new(NULL, FALSE);
+    std::cout <<"start gstreamer main loop run.";
+    g_main_loop_run(*loop);
+}
+
+static void _DEBUG_thread_quit(void *ptr) /* delete main loop */
+{
+    GMainLoop *loop = (GMainLoop *)ptr;
+    g_main_loop_quit (loop);
+}
 
 int main(int argc, char **argv)
 {
   mediapipeline::PlayerFactory::bsp_t pf1 = mediapipeline::PlayerFactory::getFactory();
   mediapipeline::PlayerFactory::bsp_t pf2 = mediapipeline::PlayerFactory::getFactory();
 
-  std::cout << "are they same ptr? : " << (pf1.get() == pf2.get() ? "yes" : "no" ) << std::endl;
-
-  mediapipeline::Player::bsp_t player = pf1->create("transport-type");
-//  mediapipeline::Player::bsp_t player = pf1->create("transport-type", "url", "1", "2");
-
-  //player->load(); // pipeline created. 
-  //player->play(); // pipeline->play()
-  //player->unload(); // pipeline->unload()
-  
+  pthread_t serviceThread;
+  pthread_attr_t threadAttr;
+  int result;
   int selectnum = 0x00;
+
+  std::cout << "are they same ptr? : " << (pf1.get() == pf2.get() ? "yes" : "no" ) << std::endl;
+  GMainLoop *gstMainLoop=NULL;
+
+  pthread_attr_init (&threadAttr);
+  if ((result = pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_DETACHED)))
+  {
+      std::cout <<"Failed to detach thread, ret =" << result;
+  }  
+    
+  if (0 != (result = pthread_create (&serviceThread, &threadAttr, DEBUG_thread, (void*)(&gstMainLoop)))) {
+        std::cout <<"Thread creation failed, ret ="<<result;
+        //ret = false;
+  }
+  mediapipeline::Player::bsp_t player = pf1->create("transport-type");
+  //  mediapipeline::Player::bsp_t player = pf1->create("transport-type", "url", "1", "2");
+  //player->setGstreamerDebugLevel(0, 0, GST_LEVEL_TRACE);
   do
   {
       std::cout << "============================================================= \n";
@@ -33,15 +78,27 @@ int main(int argc, char **argv)
 	  std::cout << "============================================================= \n";
       std::cout << " 99. Exit \n";
       std::cout << "============================================================= \n";
-
+      std::cin.clear();        //clear badbit flag
+      std::cin.sync();        //clear stdin stream
+      //cin.ignore(INT_MAX,'\n');
+      
 	  std::cout << "Select List Function integer:";
       std::cin >> selectnum;
-
+      std::cin.clear();        //clear badbit flag
+      std::cin.sync();        //clear stdin stream
+      cin.ignore(INT_MAX,'\n');
 	  switch(selectnum)
 	  {
             case 11 :
 				  {
 				  	  MEDIA_CLIPOPT_T clipOpt;
+                      std::string mystr;
+                      mystr.clear();
+                      std::cout << "Input play URI:";
+                      getline(std::cin,mystr);
+                      std::cout << endl;
+                      clipOpt.mediafile = strdup(mystr.c_str());
+                      std::cout << " -- string : "<< clipOpt.mediafile << endl;
 				      player->load(&clipOpt); // pipeline created. 
             	  }
 				  break;
@@ -75,7 +132,7 @@ int main(int argc, char **argv)
   }while(selectnum != 99);
 
 
-
+  _DEBUG_thread_quit((void*)(gstMainLoop));
 
   return 0;
 }
