@@ -16,28 +16,28 @@
 
 namespace mediapipeline
 {
-namespace utils
-{
+  namespace utils
+  {
 
-class Options
-{
-public:
-    typedef boost::shared_ptr<Options> bsp_t;
+    class Options
+    {
+    public:
+      typedef boost::shared_ptr < Options > bsp_t;
 
-private:
-    boost::property_tree::ptree pt;
+    private:
+        boost::property_tree::ptree pt;
 
-public:
-    Options();
-    ~Options();
+    public:
+        Options ();
+       ~Options ();
 
-    void loadJSON(const std::string);
+      void loadJSON (const std::string);
 
-    int getInt(const std::string);
-    std::string getString(const std::string);
-    bool getBoolean(const std::string);
-};
+      int getInt (const std::string);
+        std::string getString (const std::string);
+      bool getBoolean (const std::string);
+    };
+  }
 }
-}
 
-#endif /* OPTIONS_HPP_ */
+#endif                          /* OPTIONS_HPP_ */

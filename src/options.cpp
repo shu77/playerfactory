@@ -15,41 +15,44 @@
 
 #include <pipeline/utils/options.hpp>
 
-using namespace mediapipeline::utils;
+using namespace
+    mediapipeline::utils;
 
-Options::Options()
+Options::Options ()
 {
-    LOG_FUNCTION_SCOPE_NORMAL_D("Options");
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Options");
 }
 
-Options::~Options()
+Options::~Options ()
 {
-    LOG_FUNCTION_SCOPE_NORMAL_D("Options");
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Options");
 }
 
-void Options::loadJSON(const std::string json)
+void
+Options::loadJSON (const std::string json)
 {
-    std::stringstream ss(json);
-    LOG_FUNCTION_SCOPE_NORMAL_D("Options");
+  std::stringstream ss (json);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Options");
 
-    boost::property_tree::json_parser::read_json(ss, this->pt);
+  boost::property_tree::json_parser::read_json (ss, this->pt);
 }
 
-int Options::getInt(const std::string key)
+int
+Options::getInt (const std::string key)
 {
-    LOG_FUNCTION_SCOPE_NORMAL_D("Options");
-    return this->pt.get<int>(key);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Options");
+  return this->pt.get < int >(key);
 }
 
-std::string Options::getString(const std::string key)
+std::string Options::getString (const std::string key)
 {
-    LOG_FUNCTION_SCOPE_NORMAL_D("Options");
-    return this->pt.get<std::string>(key);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Options");
+  return this->pt.get < std::string > (key);
 }
 
-bool Options::getBoolean(const std::string key)
+bool
+Options::getBoolean (const std::string key)
 {
-    LOG_FUNCTION_SCOPE_NORMAL_D("Options");
-    return this->pt.get<bool>(key);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Options");
+  return this->pt.get < bool > (key);
 }
-

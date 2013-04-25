@@ -10,16 +10,21 @@
 
 #include <boost/shared_ptr.hpp>
 
-namespace mediapipeline {
+namespace mediapipeline
+{
 
-class PlayEventListener {
-public :
-	typedef boost::shared_ptr<PlayEventListener> bsp_t;
+  class PlayEventListener
+  {
+  public:typedef boost::shared_ptr < PlayEventListener > bsp_t;
 
-	PlayEventListener() {};
-	~PlayEventListener() {};
+      PlayEventListener ()
+    {
+    };
+     ~PlayEventListener ()
+    {
+    };
 
-};
+  };
 
 }
 
