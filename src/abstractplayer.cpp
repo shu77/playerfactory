@@ -31,14 +31,68 @@ Pipeline::bsp_t AbstractPlayer::getPipeline() {
 	return this->_pipeline;
 }
 
-void AbstractPlayer::play(int rate) {
+gboolean AbstractPlayer::play(int rate) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
-	this->playSpi(rate);
+    Pipeline::State newState = Pipeline::PlayingState;
+    Pipeline::State oldState = m_playertState;
+
+    gboolean result = false;
+    
+    m_bFeedPossible = true;
+    if(this->isReadyToPlay() == true)
+    {
+	    result = this->playSpi(rate);
+    }
+    else
+    {
+        cout << " It's a prerolling status. (play command pending now.)" << endl;
+        result = true;
+    }
+    if(!result)
+   	{
+        cout << "[AbstractPlayer::play] Error [stopped state]" << endl;
+        newState = Pipeline::StoppedState;
+    }
+    
+    m_playertState = newState;
+    if(m_playertState !=  oldState)
+    {
+        cout << "[AbstractPlayer::play] player state changed (to :" <<m_playertState <<")" << endl;
+        updateState(m_playertState);
+    }
+    return result;
 }
 
 gboolean AbstractPlayer::pause() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
-	this->pauseSpi();
+    Pipeline::State newState = Pipeline::PausedState;
+    Pipeline::State oldState = m_playertState;
+    gboolean result = false;
+   
+    if(this->getPendingPipelineState() != Pipeline::PausedState)
+    {
+	    result = this->pauseSpi();
+    }
+    else
+    {
+        // excetion for duplicated pause command.
+        cout << "[AbstractPlayer::play] player pending state : pause or stop , skipped pause command. " << endl;
+        result = true;
+    }
+    
+    if(!result)
+   	{
+        cout << "[AbstractPlayer::play] Error [stopped state]" << endl;
+        newState = Pipeline::StoppedState;
+    }
+    
+    m_playertState = newState;
+    if(m_playertState !=  oldState)
+    {
+        cout << "[AbstractPlayer::play] player state changed (to :" <<m_playertState <<")" << endl;
+        updateState(m_playertState);
+    }
+    return result;
 }
 
 /*
@@ -47,25 +101,29 @@ void AbstractPlayer::load() {
 	this->loadSpi();
 }
 */
-void AbstractPlayer::load(MEDIA_STREAMOPT_T *streamOpt) {
+gboolean AbstractPlayer::load(MEDIA_STREAMOPT_T *streamOpt) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
-	this->loadSpi(streamOpt);
+	return this->loadSpi(streamOpt);
 }
 	
-void AbstractPlayer::load(MEDIA_CLIPOPT_T *clipOpt) {
+gboolean AbstractPlayer::load(MEDIA_CLIPOPT_T *clipOpt) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
-	this->loadSpi(clipOpt);
+	return this->loadSpi(clipOpt);
 }
 
-void AbstractPlayer::unload() {
+gboolean AbstractPlayer::unload() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
-	this->unloadSpi();
+    if(m_playertState != Pipeline::StoppedState)
+    {
+        m_playertState = Pipeline::StoppedState;
+	    return this->unloadSpi();
+    }
+    return true;
 }
-
 
 gboolean AbstractPlayer::setPlaybackRate(gfloat rate){
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
-	this->setPlaybackRateSpi(rate);
+	return this->setPlaybackRateSpi(rate);
 }
 
 
@@ -120,7 +178,7 @@ GString AbstractPlayer::errorString() const
 void AbstractPlayer::updateState(Pipeline::State newState)
 {
     //Pipeline::MediaStatus oldStatus = m_mediaStatus;
-    Pipeline::State saveState = m_userInputState;
+    Pipeline::State saveState = m_playertState;
 
 	//TODO :: notify upper layer.
 

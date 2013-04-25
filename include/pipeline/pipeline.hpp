@@ -111,14 +111,17 @@ public:
     virtual gboolean initSpi_post()=0;
     
 	//virtual void load() = 0;
-	virtual bool load(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType) = 0;
-	virtual bool load(MEDIA_CLIPOPT_T *clipOpt) = 0;
-	/*virtual */void unload();// = 0;
-	/*virtual*/ bool play(int rate = 1);// = 0;
+	virtual gboolean load(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType) = 0;
+	virtual gboolean load(MEDIA_CLIPOPT_T *clipOpt) = 0;
+	/*virtual */gboolean unload();// = 0;
+	/*virtual*/ gboolean play(int rate = 1);// = 0;
 	/*virtual*/ gboolean pause();// = 0;
-	/*virtual*/ void stop();// = 0;
-    /*virtual*/ bool seek(gint64 ms);// = 0;
+	/*virtual*/ gboolean stop();// = 0;
+    /*virtual*/ gboolean seek(gint64 ms);// = 0;
     //virtual gboolean setPlaybackRate(gfloat rate) = 0;
+    gboolean isReadyToPlay();
+    Pipeline::State  getPendingPipelineState();
+    virtual gboolean isReadyToPlaySpi() = 0;
     
 //handle buscallback
     bool compareDouble(const double num1, const double num2);
@@ -134,13 +137,12 @@ public:
     void handleBusApplication(gpointer data, GstMessage *pMessage);
     void handleBusEOS(gpointer data);
     void handleStateMsgPause(gpointer data, GstState oldState);
+    void handleStateMsgPlay(gpointer data);
 
     static void handleVolumeChange(GObject *o, GParamSpec *p, gpointer d);
     static void handleMutedChange(GObject *o, GParamSpec *p, gpointer d);
     static gboolean gstBusCallbackHandle(GstBus *pBus, GstMessage *pMessage, gpointer data);
 	
-
-
 //end buscallback
 
 //set seek,trick
@@ -162,8 +164,8 @@ public:
     //virtual void setSeekable(bool seekable) = 0;
     /*virtual */gint64 duration() const;// = 0;
     /*virtual */gint64 position() const;// = 0;
-    /*virtual*/ gint volume() const;// = 0;
-	/*virtual*/ gboolean isMuted() const;// = 0;
+    /*virtual */gint volume() const;// = 0;
+	/*virtual */gboolean isMuted() const;// = 0;
 	/*virtual */gboolean isAudioAvailable() const;// = 0;
 	/*virtual */gboolean isVideoAvailable() const;// = 0;
 	/*virtual */gboolean isSeekable();// = 0;
@@ -171,6 +173,7 @@ public:
 	//virtual gfloat playbackRate() const = 0;
 
 	/* notify state change */
+    void pipelineEventNotify(gpointer data, MEDIA_CB_MSG_T msg);
     void stateChanged(Pipeline::State state);
 	void seekableStateChanged(bool seekable);
 	void playbackRateChanged(gfloat rate);
@@ -235,7 +238,8 @@ public:
     gboolean                    m_bEndOfFile;     // EndOfFile ÀÎ °æ¿ì
     guint8                      *pPendingAudioLanguage;
     gint                        pendingVideoAngleNum; // multi video angle, pending angle number.
-    gchar                       isCheckPendingMultiTrackSetting;
+    //gchar                       isCheckPendingMultiTrackSetting;
+    gboolean                    m_bPlayStatePreProcessingDone;
 
     //BOOLEAN bForward;           -> m_playbackRate
     //UINT8 speedInt;             -> m_playbackRate

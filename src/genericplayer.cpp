@@ -22,11 +22,12 @@ GenericPlayer::~GenericPlayer() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
 }
 
-void GenericPlayer::playSpi(int rate) {
+gboolean GenericPlayer::playSpi(int rate) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
 	LOG_D("playing", "GenericPlayer");
 	Pipeline::bsp_t pipeline = getPipeline();
 	pipeline->play(rate);
+    return true;
 }
 
 gboolean GenericPlayer::pauseSpi() {
@@ -36,28 +37,42 @@ gboolean GenericPlayer::pauseSpi() {
 	return pipeline->pause();
 }
 
-void GenericPlayer::loadSpi(MEDIA_STREAMOPT_T *streamOpt){
+gboolean GenericPlayer::loadSpi(MEDIA_STREAMOPT_T *streamOpt){
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
 
 	std::cout << "not supported API at genericPlayer. " << endl;
 }
 
-void GenericPlayer::loadSpi(MEDIA_CLIPOPT_T *clipOpt){
+gboolean GenericPlayer::loadSpi(MEDIA_CLIPOPT_T *clipOpt){
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
 
 	Pipeline::bsp_t pipeline = getPipeline();
 //	pipeline.reset(new GenericPipeline()); //moved to create time..
 //	setPipeline(pipeline);
 
-    pipeline->init();
+    pipeline->init(); //create gst pipeline
 	pipeline->load(clipOpt);
 }
 
-void GenericPlayer::unloadSpi() {
+gboolean GenericPlayer::unloadSpi() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
 	Pipeline::bsp_t pipeline = getPipeline();
 	pipeline->unload();
 }
+
+gboolean GenericPlayer::isReadyToPlay() {
+	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
+	Pipeline::bsp_t pipeline = getPipeline();
+	return pipeline->isReadyToPlay();
+}
+
+Pipeline::State GenericPlayer::getPendingPipelineState()
+{
+	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
+	Pipeline::bsp_t pipeline = getPipeline();
+	return pipeline->getPendingPipelineState();
+}
+
 
 gboolean GenericPlayer::setPlaybackRateSpi(gfloat rate){
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");

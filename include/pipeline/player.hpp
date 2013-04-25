@@ -33,12 +33,12 @@ public:
 
 	virtual void addEventListener(PlayEventListener::bsp_t listener) = 0;
 
-	virtual void load(MEDIA_STREAMOPT_T *streamOpt) = 0;
-	virtual void load(MEDIA_CLIPOPT_T *clipOpt) = 0;
-	virtual void unload() = 0;
+	virtual gboolean load(MEDIA_STREAMOPT_T *streamOpt) = 0;
+	virtual gboolean load(MEDIA_CLIPOPT_T *clipOpt) = 0;
+	virtual gboolean unload() = 0;
     virtual gboolean pause() = 0;
 
-	virtual void play(int rate = 1) = 0;
+	virtual gboolean play(int rate = 1) = 0;
     virtual gboolean setPlaybackRate(gfloat rate) = 0;
 
 	/*
