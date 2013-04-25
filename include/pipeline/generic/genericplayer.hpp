@@ -25,10 +25,11 @@ public :
 
 	void playSpi(int rate);
 	//void loadSpi();
-	void loadSpi(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType);
+	void loadSpi(MEDIA_STREAMOPT_T *streamOpt);
 	void loadSpi(MEDIA_CLIPOPT_T *clipOpt);
-	
 	void unloadSpi();
+    gboolean pauseSpi();
+    gboolean setPlaybackRateSpi(gfloat rate);
 
     gint64 durationSpi() const;
     gint64 positionSpi() const;

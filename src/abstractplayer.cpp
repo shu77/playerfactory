@@ -35,15 +35,21 @@ void AbstractPlayer::play(int rate) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
 	this->playSpi(rate);
 }
+
+gboolean AbstractPlayer::pause() {
+	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
+	this->pauseSpi();
+}
+
 /*
 void AbstractPlayer::load() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
 	this->loadSpi();
 }
 */
-void AbstractPlayer::load(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType) {
+void AbstractPlayer::load(MEDIA_STREAMOPT_T *streamOpt) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
-	this->loadSpi(streamOpt, mediaFormatType);
+	this->loadSpi(streamOpt);
 }
 	
 void AbstractPlayer::load(MEDIA_CLIPOPT_T *clipOpt) {
@@ -51,13 +57,17 @@ void AbstractPlayer::load(MEDIA_CLIPOPT_T *clipOpt) {
 	this->loadSpi(clipOpt);
 }
 
-
-
-
 void AbstractPlayer::unload() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
 	this->unloadSpi();
 }
+
+
+gboolean AbstractPlayer::setPlaybackRate(gfloat rate){
+	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
+	this->setPlaybackRateSpi(rate);
+}
+
 
 gint64 AbstractPlayer::duration() const
 {

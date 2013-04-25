@@ -15,7 +15,7 @@ GenericPlayer::GenericPlayer() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
 	Pipeline::bsp_t pipeline = getPipeline();
 	pipeline.reset(new GenericPipeline());
-	setPipeline(pipeline);
+	setPipeline(pipeline); // save to abstractplayer.
 }
 
 GenericPlayer::~GenericPlayer() {
@@ -28,25 +28,18 @@ void GenericPlayer::playSpi(int rate) {
 	Pipeline::bsp_t pipeline = getPipeline();
 	pipeline->play(rate);
 }
-/*
-void GenericPlayer::loadSpi() {
-	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
 
+gboolean GenericPlayer::pauseSpi() {
+	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
+	LOG_D("pause", "GenericPlayer");
 	Pipeline::bsp_t pipeline = getPipeline();
-	pipeline.reset(new GenericPipeline());
-	setPipeline(pipeline);
-	pipeline->load();
+	return pipeline->pause();
 }
-*/
-void GenericPlayer::loadSpi(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType){
+
+void GenericPlayer::loadSpi(MEDIA_STREAMOPT_T *streamOpt){
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
 
-	std::cout << "not supported API at genericPlayer. ";
-
-	//Pipeline::bsp_t pipeline = getPipeline();
-	//pipeline.reset(new GenericPipeline());
-	//setPipeline(pipeline);
-	//pipeline->load();
+	std::cout << "not supported API at genericPlayer. " << endl;
 }
 
 void GenericPlayer::loadSpi(MEDIA_CLIPOPT_T *clipOpt){
@@ -55,6 +48,8 @@ void GenericPlayer::loadSpi(MEDIA_CLIPOPT_T *clipOpt){
 	Pipeline::bsp_t pipeline = getPipeline();
 //	pipeline.reset(new GenericPipeline()); //moved to create time..
 //	setPipeline(pipeline);
+
+    pipeline->init();
 	pipeline->load(clipOpt);
 }
 
@@ -63,6 +58,13 @@ void GenericPlayer::unloadSpi() {
 	Pipeline::bsp_t pipeline = getPipeline();
 	pipeline->unload();
 }
+
+gboolean GenericPlayer::setPlaybackRateSpi(gfloat rate){
+	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPlayer");
+	Pipeline::bsp_t pipeline = getPipeline();
+	pipeline->setPlaybackRate(rate);
+}
+
 
 gint64 GenericPlayer::durationSpi() const
 {

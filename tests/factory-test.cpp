@@ -63,7 +63,9 @@ int main(int argc, char **argv)
   }
   mediapipeline::Player::bsp_t player = pf1->create("transport-type");
   //  mediapipeline::Player::bsp_t player = pf1->create("transport-type", "url", "1", "2");
+  
   //player->setGstreamerDebugLevel(0, 0, GST_LEVEL_TRACE);
+  
   do
   {
       std::cout << "============================================================= \n";
@@ -71,6 +73,8 @@ int main(int argc, char **argv)
       std::cout << "============================================================= \n";
       std::cout << " 11. load (playbin)\n";
       std::cout << " 12. play \n";
+      std::cout << " 13. pause \n";
+      std::cout << " 17. setPlaybackRate \n";
       std::cout << " 18. unload \n";
 	  std::cout << " 19. get duration \n";
       std::cout << "============================================================= \n";
@@ -80,13 +84,14 @@ int main(int argc, char **argv)
       std::cout << "============================================================= \n";
       std::cin.clear();        //clear badbit flag
       std::cin.sync();        //clear stdin stream
-      //cin.ignore(INT_MAX,'\n');
       
 	  std::cout << "Select List Function integer:";
       std::cin >> selectnum;
+
       std::cin.clear();        //clear badbit flag
       std::cin.sync();        //clear stdin stream
-      cin.ignore(INT_MAX,'\n');
+      std::cin.ignore(INT_MAX,'\n'); 
+      //std::cout <<"["<< selectnum << "]";
 	  switch(selectnum)
 	  {
             case 11 :
@@ -106,7 +111,22 @@ int main(int argc, char **argv)
             case 12 :
 				  player->play();
                   break;
-
+            case 13 :
+                  player->pause();
+                  break;
+            case 17 :
+                  {
+                      std::string num;
+                      gfloat temp;
+                      num.clear();
+                      std::cout << "Input playback rate (0.x):";
+                      getline(std::cin,num);
+                  
+                      temp = std::atof(num.c_str());
+                      std::cout << "rate inputed : " << temp << endl;
+                      player->setPlaybackRate(temp);//(reinterpret_cast<float>temp);
+                      break;
+	              }
             case 18 :
 				  player->unload();
 				  break;
@@ -117,8 +137,7 @@ int main(int argc, char **argv)
             case 21 :
 				  {
 				  	  MEDIA_STREAMOPT_T streamOpt;
-					  MEDIA_FORMAT_T mediaFormatType;
-				      player->load(&streamOpt, mediaFormatType); // pipeline created. 
+				      player->load(&streamOpt); // pipeline created. 
             	  }
 				  break;
 
@@ -126,9 +145,7 @@ int main(int argc, char **argv)
             default :
                 break;
 	  }
-	  std::cin.clear();
-	  //std::cout << "selectnum = " << selectnum << "\n";
-    
+	  //std::cin.clear();
   }while(selectnum != 99);
 
 

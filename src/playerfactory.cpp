@@ -28,7 +28,7 @@ PlayerFactory::PlayerFactory() {
     {
         LOG_D("Error:" "%s\n", pErr->message);
         g_error_free(pErr);
-		//return HOA_ERROR; //TODO: check fail case.
+		//return ERROR; //TODO: check fail case.
     }
 }
 
@@ -55,8 +55,13 @@ PlayerFactory::bsp_t PlayerFactory::getFactory() {
 	return instance;
 }
 
+
+//TODO : 기존 lmf_api에서 uri check로 분기타던 FCC 및 MCAST 는 app 단에서 URI 확인 및 transport type 지정 필요.
 Player::bsp_t PlayerFactory::create(const std::string transport_type) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("PlayerFactory");
+
+    // need convert.. (string to local enum)
+    
 	return this->create(1);
 }
 
@@ -64,8 +69,14 @@ Player::bsp_t PlayerFactory::create(unsigned int transport_type) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("PlayerFactory");
 	Player::bsp_t player;
 
-	// TODO: refine selection alghorithm
-  player.reset (new GenericPlayer());
+// 1. check transport type.
+    if(transport_type>=MEDIA_TRANS_PLAYBIN_START && transport_type<=MEDIA_TRANS_PLAYBIN_START)
+    {
+      cout << "create GenericPlayer";
+      player.reset (new GenericPlayer());
+    }
+    else 
+        {} //custom pipeline create.
 
 	return player;
 }
