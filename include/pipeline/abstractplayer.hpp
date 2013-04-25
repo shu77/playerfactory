@@ -31,10 +31,10 @@ public:
 	Pipeline::bsp_t getPipeline();
 
 	//void load();
-	void load(MEDIA_STREAMOPT_T *streamOpt);
-	void load(MEDIA_CLIPOPT_T *clipOpt);
-	void unload();
-	void play(int rate);
+	gboolean load(MEDIA_STREAMOPT_T *streamOpt);
+	gboolean load(MEDIA_CLIPOPT_T *clipOpt);
+	gboolean unload();
+	gboolean play(int rate);
     gboolean pause();
     gboolean setPlaybackRate(gfloat rate);
 
@@ -51,19 +51,21 @@ public:
 	//Error error() const;
 	GString errorString() const;
 
-	Pipeline::State m_userInputState; /* user input control status */
+	Pipeline::State m_playertState; /* user input control status */
+    gboolean m_bFeedPossible;
     void updateState(Pipeline::State newState);
     bool setGstreamerDebugLevel(guint select, gchar *category, GstDebugLevel level);
 
 public: // for derived players
 	//virtual void loadSpi() = 0;
-	virtual void loadSpi(MEDIA_STREAMOPT_T *streamOpt)=0;
-	virtual void loadSpi(MEDIA_CLIPOPT_T *clipOpt)=0;
-	virtual void unloadSpi() = 0;
-	virtual void playSpi(int rate) = 0;
+	virtual gboolean loadSpi(MEDIA_STREAMOPT_T *streamOpt)=0;
+	virtual gboolean loadSpi(MEDIA_CLIPOPT_T *clipOpt)=0;
+	virtual gboolean unloadSpi() = 0;
+	virtual gboolean playSpi(int rate) = 0;
     virtual gboolean pauseSpi() = 0;
     virtual gboolean setPlaybackRateSpi(gfloat rate) = 0;
-
+    virtual gboolean isReadyToPlay() = 0;
+    virtual Pipeline::State getPendingPipelineState() = 0;
 
 
 

@@ -164,7 +164,7 @@ bool GenericPipeline::setExtraElementOption(MEDIA_CLIPOPT_T *clipOpt){
     return true;
 }
 
-bool GenericPipeline::load(MEDIA_CLIPOPT_T *clipOpt){
+gboolean GenericPipeline::load(MEDIA_CLIPOPT_T *clipOpt){
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPipeline");
     // setting values
     if(handleURI(clipOpt) == false)
@@ -191,11 +191,47 @@ bool GenericPipeline::load(MEDIA_CLIPOPT_T *clipOpt){
 }
 
 
-bool GenericPipeline::load(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType) {
+gboolean GenericPipeline::load(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPipeline");
 	//this->loadSpi(clipOpt);
 	// not supported API.
 }
+
+/* for prebuffering action */
+gboolean GenericPipeline::isReadyToPlaySpi()
+{
+	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPipeline");
+
+    // play already done -> Resume Case
+    if (m_bPlaybackStarted == true)
+    {
+        cout << " Resume Case" << endl;
+        return true;
+    }
+    //TODO for prebuffering //return false;   // prebuffering Сп...
+    return true; //temp..
+}
+
+#if 0 //TODO custiom player...
+gboolean ::isReadyToPlaySpi()
+{
+	LOG_FUNCTION_SCOPE_NORMAL_D("GenericPipeline");
+
+    // play already done -> Resume Case
+    if (m_bPlaybackStarted == true)
+    {
+        cout << " Resume Case" << endl;
+        return true;
+    }
+
+    // playbin player case
+    LMF_DBG_PRINT("[%s:%d][ch:%d] Check Playbin2 Case\n", __FUNCTION__, __LINE__, ch);
+    return FALSE;   // prebuffering Сп...
+}
+#endif
+
+
+
 
 
 //Error GenericPipeline::error() const;

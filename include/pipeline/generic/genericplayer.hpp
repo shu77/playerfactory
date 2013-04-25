@@ -23,14 +23,16 @@ private:
 public :
 	~GenericPlayer();
 
-	void playSpi(int rate);
+	gboolean playSpi(int rate);
 	//void loadSpi();
-	void loadSpi(MEDIA_STREAMOPT_T *streamOpt);
-	void loadSpi(MEDIA_CLIPOPT_T *clipOpt);
-	void unloadSpi();
+	gboolean loadSpi(MEDIA_STREAMOPT_T *streamOpt);
+	gboolean loadSpi(MEDIA_CLIPOPT_T *clipOpt);
+	gboolean unloadSpi();
     gboolean pauseSpi();
     gboolean setPlaybackRateSpi(gfloat rate);
-
+    gboolean isReadyToPlay();
+    Pipeline::State  getPendingPipelineState();
+    
     gint64 durationSpi() const;
     gint64 positionSpi() const;
     gint volumeSpi() const;

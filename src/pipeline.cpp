@@ -55,7 +55,8 @@ Pipeline::~Pipeline() {
 //------------------------------------------start basic controls //
 gboolean Pipeline::init() {
 
-this->initSpi_pre(); //custom pipeline control (pre) < create gstreamer pipeline here. > m_pipeHandle
+    if(this->initSpi_pre()==false) //custom pipeline control (pre) < create gstreamer pipeline here. > m_pipeHandle
+        return false;
 /* common gstreamer control start */
 
     std::cout << " >> init " << endl;
@@ -83,12 +84,13 @@ this->initSpi_pre(); //custom pipeline control (pre) < create gstreamer pipeline
     cout << "pipeline] create finish " << endl;
     
 /* common gstreamer control end */
-this->initSpi_post(); //custom pipeline control (post)
+    if(this->initSpi_post()==false) //custom pipeline control (post)
+        return false;
 
 return true;
 }
 
-bool Pipeline::play(int rate) {
+gboolean Pipeline::play(int rate) {
 	LOG_FUNCTION_SCOPE_NORMAL_D("Pipeline");
     if (m_pipeHandle) 
 	{
@@ -105,9 +107,10 @@ bool Pipeline::play(int rate) {
 
 }
 
-void Pipeline::unload() {
+gboolean Pipeline::unload() {
 	LOG_FUNCTION_SCOPE_NORMAL_D("Pipeline");
     stop();
+    return true;
 }
 
 gboolean Pipeline::pause(){
@@ -133,7 +136,7 @@ gboolean Pipeline::pause(){
 
 }
 
-void Pipeline::stop(){
+gboolean Pipeline::stop(){
 	LOG_FUNCTION_SCOPE_NORMAL_D("Pipeline");
     if (m_pipeHandle) {
         //stopping (renderer if existed.) here.
@@ -151,9 +154,10 @@ void Pipeline::stop(){
         if (oldState != m_gstPipelineState)
             stateChanged(m_gstPipelineState); //notify state change.
     }
+    return true;
 }
 
-bool Pipeline::seek(gint64 ms)
+gboolean Pipeline::seek(gint64 ms)
 {
     //seek locks when the video output sink is changing and pad is blocked
     if (m_pipeHandle && !m_blockByVideoSink && m_gstPipelineState != StoppedState) {
@@ -250,6 +254,18 @@ gboolean Pipeline::isSeekable(gpointer data)
 
 }
 
+gboolean Pipeline::isReadyToPlay()
+{
+    return this->isReadyToPlaySpi();
+}
+
+Pipeline::State  Pipeline::getPendingPipelineState()
+{
+	std::cout << "pending pipeline state = " << this->m_pendingState << endl;
+    return this->m_pendingState;
+}
+
+
 //------------------------------------------end basic gstreamer controls //
 
 
@@ -332,7 +348,12 @@ BufferController::bsp_t Pipeline::getBufferController() {
 	return this->_bufferControl;
 }
 
+void Pipeline::pipelineEventNotify(gpointer data, MEDIA_CB_MSG_T msg)
+{
 
+
+
+}
 
 
 void Pipeline::checkSupported (gpointer data)
@@ -564,7 +585,7 @@ void Pipeline::collectTags (const GstTagList *tag_list, const gchar *tag, gpoint
 					LMF_DBG_PRINT("[BUS][%s][%s] after play state : sending Unknown Audio Codec message.\n", __FUNCTION__, tag);
 					m_bPendingNotSupportedAudioMessage = false;
 					m_bSendNotSupportedAudioMessageAtPlayState = true;
-					API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_NOT_SUPPORTED_AUDIO_CODEC);
+					self->pipelineEventNotify(self, MEDIA_CB_MSG_NOT_SUPPORTED_AUDIO_CODEC);
 				}
 				else
 				{
@@ -581,7 +602,7 @@ void Pipeline::collectTags (const GstTagList *tag_list, const gchar *tag, gpoint
 				if(m_gstPipelineState == PlayingState)
 				{
 					LMF_DBG_PRINT("[BUS][%s] video TAG updated! noti to UI.\n", __FUNCTION__);
-					//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_SOURCE_INFO_UPDATED);
+					self->pipelineEventNotify(self, MEDIA_CB_MSG_SOURCE_INFO_UPDATED);
 				}
 			}
 #endif
@@ -687,7 +708,7 @@ void Pipeline::collectTags (const GstTagList *tag_list, const gchar *tag, gpoint
 					if(self->m_gstPipelineState == PlayingState)
 					{
 						std::cout <<"[BUS] video TAG updated! noti to UI.";
-						//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_SOURCE_INFO_UPDATED);
+						self->pipelineEventNotify(self, MEDIA_CB_MSG_SOURCE_INFO_UPDATED);
 					}
 				}
 
@@ -742,6 +763,91 @@ void Pipeline::handleBusTag(gpointer data, GstMessage *pMessage)
 		gst_tag_list_free(pTagList);
 	}
 	checkSupported(self);
+}
+
+void Pipeline::handleStateMsgPlay(gpointer data)
+{
+    Pipeline *self = reinterpret_cast<Pipeline*>(data);
+
+	std::cout << "[BUS]" << __FUNCTION__ << __LINE__ << endl;
+
+	if (self->m_gstPipelineState != PlayingState)
+	{
+		self->m_gstPipelineState = PlayingState;
+
+		if (!self->m_bPlaybackStarted)
+		{
+			self->m_bPlaybackStarted = TRUE;
+#if 0 //TODO.. play exception handling must add.
+			// handle invalid video file, not supported audio codec . // check at start time.
+			if(_LMF_PLYR_BUS_CheckNotSupportedVideoMessage(pPlayerHandle) == TRUE) // if sending CB done
+			{
+				LMF_DBG_PRINT("[BUS][CB] send pending_not_support_message done. skip send MEDIA_CB_MSG_PLAYSTART !!! \n");
+				//pPlayerHandle->bPlaybackStarted = TRUE; //skip send MEDIA_CB_MSG_PLAYSTART
+				self->isCheckPendingMultiTrackSetting = TRUE; // skip pending multi audio check.
+			}
+			else
+#endif
+			{
+				std::cout <<"[BUS][->NOTI] MEDIA_CB_MSG_PLAYSTART" << endl;
+				self->pipelineEventNotify(self, MEDIA_CB_MSG_PLAYSTART);
+			}
+		}
+		else
+		{
+			std::cout <<"[BUS][->NOTI] MEDIA_CB_MSG_RESUME_DONE" << endl;
+			self->pipelineEventNotify(self, MEDIA_CB_MSG_RESUME_DONE);
+		}
+
+		if (self->m_bPlayStatePreProcessingDone == false)
+		{
+#if 0 //TDODO.. play excetion handling must add. - 기존 UI에서 대응하지 못하여 noti timing을 이동. 5.0에서 clear 필요.
+			if(_LMF_PLAYBIN2_checkPendingEOS(pPlayerHandle) == true)
+			{
+				LMF_DBG_PRINT("[BUS][CB] processed pending EOS, quick return. !!! \n");
+				return;
+			}
+
+			if (LMF_PLAYBIN2_CheckPendingMultiTrackSetting(pPlayerHandle) == false)
+			{
+				std::cout <<"[BUS][CB]error set pending_multi_track_setting!!! "<< endl;
+			}
+#endif
+			self->m_bPlayStatePreProcessingDone = true;
+
+#if 0 //TDODO.. play excetion handling must add. - 기존 UI에서 대응하지 못하여 noti timing을 이동. 5.0에서 clear 필요.
+			// started time에 not supported도 보낸다. UI에서 play start msg 이후에 CB 받을 수 있다는 요청에 대응.
+			if(_LMF_PLYR_BUS_CheckPendingNotSupportedAudioMessage(pPlayerHandle) == false)
+			{
+				std::cout <<"[BUS][CB]error send pending_not_support_message!!!" << endl;
+			}
+			if(_LMF_PLYR_BUS_CheckPendingAdditionalVideoMessage(pPlayerHandle) == false)
+			{
+				std::cout <<"[BUS][CB]error send PendingAdditionalVideoMessage!!!" << endl;
+			}
+#endif
+		}
+		else
+		{
+			std::cout <<"[BUS]LMF_PLAYBIN2_CheckPendingMultiTrackSetting already done!" << endl;
+		}
+		if (isSeekable(self))
+		{
+			//TODO LMF_PLYR_ApplyPendingSeek(pPlayerHandle->ch);
+		}
+		else
+		{
+		    self->stateChanged(self->m_gstPipelineState);
+		    std::cout << "[BUS][-> NOTI] stateChanged: " << self->m_gstPipelineState << endl;
+        }
+		std::cout <<"[BUS][CB - GST_STATE_PLAYING]state changed - PlayingState  " << endl;
+	}
+	else
+	{
+		std::cout << "[BUS][CB - GST_STATE_PLAYING]state - PlayingState  " << endl;
+	}
+
+	return;
 }
 
 void Pipeline::handleStateMsgPause(gpointer data, GstState oldState)
@@ -882,7 +988,7 @@ void Pipeline::handleBusStateMsg(gpointer data, GstMessage *pMessage)
 		}
 		case GST_STATE_PLAYING:
 		{
-			//TODO _LMF_PLYR_BUS_StateMsgPlay(pPlayerHandle);
+			self->handleStateMsgPlay(self);
 			break;
 		}
 	} // end switch
@@ -909,25 +1015,25 @@ void Pipeline::handleBusEOS(gpointer data)
 		if (self->m_bNeedToRestart == false)
 		{
 			std::cout <<"[BUS EOS] send MEDIA_CB_MSG_PLAYEND. " << endl;
-			//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_PLAYEND);
+			self->pipelineEventNotify(self, MEDIA_CB_MSG_PLAYEND);
 		}
 		else // ASF live case.
 		{
 			if(self->m_bAsfLive==true && self->m_duration>0) // local file ASF live play case.
 			{
 				std::cout <<"[BUS EOS] send MEDIA_CB_MSG_PLAYEND at (ASF live + local file play case)." << endl;
-				//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_PLAYEND);
+				self->pipelineEventNotify(self, MEDIA_CB_MSG_PLAYEND);
 				// asf demuxer 에서 file play 인 경우만 duration 제공. 이외는 0.
 			}
 			else if(self->m_isDLNA == true)
 			{   // WMP(win8) DLNA DMC 재생 시, ASF live stream 으로 재생.
 				std::cout <<"[BUS EOS] send MEDIA_CB_MSG_PLAYEND at (ASF live + DLNA play case). " << endl;
-				//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_PLAYEND);
+				self->pipelineEventNotify(self, MEDIA_CB_MSG_PLAYEND);
 			}
 			else
 			{	/* live asf - protocol module에서 eos detect 시 재생 retry (requirement of ORANGE pl sport)*/
 				std::cout <<"[BUS EOS] send MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN at (ASF live stream)." << endl;
-				//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
+				self->pipelineEventNotify(self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
 			}
 		}
 	}
@@ -963,12 +1069,12 @@ gboolean Pipeline::handleBusPlayerMessage(gpointer data, GstMessage *pMessage)
 			gst_message_parse_error(pMessage, &pErr, &pDebug);
 			if ((pErr->domain == GST_STREAM_ERROR) && (pErr->code == GST_STREAM_ERROR_CODEC_NOT_FOUND))
 			{
-				//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_ERR_CODEC_NOT_SUPPORTED);
+				self->pipelineEventNotify(self, MEDIA_CB_MSG_ERR_CODEC_NOT_SUPPORTED);
 				std::cout << "[BUS][format error] Cannot play stream of type: <unknown>";
 			}
 			else
 			{
-				//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_ERR_PLAYING);
+				self->pipelineEventNotify(self, MEDIA_CB_MSG_ERR_PLAYING);
 				std::cout << "[BUS][resource error] Cannot play stream of type: <unknown>";
 			}
 
@@ -1065,7 +1171,6 @@ gboolean Pipeline::handleBusElementMessage(gpointer data, GstMessage *pMessage){
 	if (GST_MESSAGE_TYPE(pMessage) != GST_MESSAGE_ERROR)
 		return true;
 
-	//player 가 아닌 element에서 전달받은 ERROR
 	gst_message_parse_error(pMessage, &pErr, &pDebug);
 
 	std::cout << "[BUS]GST_MESSAGE_ERROR: " << (pErr->domain == GST_STREAM_ERROR? "GST_STREAM_ERROR":
@@ -1090,35 +1195,35 @@ gboolean Pipeline::handleBusElementMessage(gpointer data, GstMessage *pMessage){
 			(pErr->code == GST_STREAM_ERROR_DECODE))
 	{
 		std::cout <<"[BUS] decode error from adecsink!!!";
-		//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_ERR_AUDIO_DECODING_FAILED);//(MSG_MF2UI_AUDIO_DECODING_FAILED);
+		self->pipelineEventNotify(self, MEDIA_CB_MSG_ERR_AUDIO_DECODING_FAILED);//(MSG_MF2UI_AUDIO_DECODING_FAILED);
 	}
 	else if ((strncmp(GST_OBJECT_NAME(GST_MESSAGE_SRC(pMessage)), "source", strlen("source")) == 0) &&
 			 (self->m_bNeedToRestart == true))
 	{
-		/* live asf - protocol module에서 error detect 시 재생 retry (requirement of ORANGE pl sport)*/
+		/* live asf - protocol module want to play againg at error detect case (requirement of ORANGE pl sport)*/
 		std::cout <<"[BUS][%s:%d] error from soup http (asf live) -> play again!!!";
-		//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
+		self->pipelineEventNotify(self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
 	}
 	else if((strncmp(GST_OBJECT_NAME(GST_MESSAGE_SRC(pMessage)), "source", strlen("source")) == 0) &&
 			(strncmp(G_OBJECT_TYPE_NAME(GST_MESSAGE_SRC(pMessage)), "GstSoupHTTPSrc", strlen("GstSoupHTTPSrc")) == 0) &&
 			(pErr->domain == GST_STREAM_ERROR) &&
 			(pErr->code == GST_STREAM_ERROR_WRONG_TYPE))
 	{
-		// http url 에서 mms로 redirection 이 발생하는 경우가 있음.
+		// http url to mms url redirection CASE.
 		std::cout <<"[BUS]....... " << g_type_name (G_OBJECT_TYPE (GST_MESSAGE_SRC(pMessage)));
 		std::cout <<"[BUS]....... " << G_OBJECT_TYPE_NAME(GST_MESSAGE_SRC(pMessage));
 
-		//[message to UI]FormatError  "Cannot play stream of type: <unknown>"
+		//[message to upper layer]FormatError  "Cannot play stream of type: <unknown>"
 		std::cout << "[BUS] error from source with new url -> play again!!";
 		std::cout << "[BUS] msg:" << pErr->message;
 		std::cout << "[BUS] debug:"<<  pDebug;
-#if 0 //TODO...
+#if 0 //TODO... for uri redirection..
 		if ((strstr(pErr->message, "souphttpsrc:") != NULL) &&
 			(strlen(pDebug)>strlen("mms://")))
 		{
 			LMF_PLYR_CTRL_Stop(pPlayerHandle,false);
 
-			pPlayerHandle->pNewUri = (char *)MF_MAIN_Malloc(LMF_MEM_APP, strlen(pDebug)+1);
+			pPlayerHandle->pNewUri = (char *)malloc(strlen(pDebug)+1);
 			if (pPlayerHandle->pNewUri == NULL)
 			{
 				LMF_ERR_PRINT("[BUS][%s:%d] pNewUri MF_MAIN_Malloc failed.\n", __FUNCTION__, __LINE__);
@@ -1130,7 +1235,7 @@ gboolean Pipeline::handleBusElementMessage(gpointer data, GstMessage *pMessage){
 
 				//TODO std::cout << "[BUS][%s] new uri :" << __FUNCTION__ << self->m_pNewUri);
 
-				//TODO API_LMF_EVENT_Notify(pPlayerHandle->ch, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
+				self->pipelineEventNotify(self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
 			}
 		}
 #endif

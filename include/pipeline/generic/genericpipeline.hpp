@@ -30,8 +30,8 @@ public:
 
 
 	//void load();
-	bool load(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType);
-	bool load(MEDIA_CLIPOPT_T *clipOpt);
+	gboolean load(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType);
+	gboolean load(MEDIA_CLIPOPT_T *clipOpt);
 	//void unload();
 	//bool play(int rate);
 	//gboolean pause();
@@ -39,7 +39,7 @@ public:
     //bool seek(gint64 ms);
     bool loadFromURI();
     bool handleURI(MEDIA_CLIPOPT_T *clipOpt);
-
+    gboolean isReadyToPlaySpi();
     //gint64 duration() const;
     //gint64 position() const;
     //gint volume() const;
