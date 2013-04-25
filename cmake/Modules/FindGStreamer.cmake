@@ -44,6 +44,10 @@ FIND_LIBRARY(GSTREAMER_BASE_LIBRARY NAMES gstbase-1.0
    PATHS
    ${_GStreamerLinkDir}
    )
+FIND_LIBRARY(GSTREAMER_BASE_LIBRARY NAMES gstpbutils-1.0
+   PATHS
+   ${_GStreamerLinkDir}
+   )
 
 IF (GSTREAMER_INCLUDE_DIRS)
    #MESSAGE(STATUS "DEBUG: Found GStreamer include dir: ${GSTREAMER_INCLUDE_DIRS}")
