@@ -10,7 +10,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/property_tree/ptree.hpp>
-
+#include <glib.h>
 #include <string>
 
 
@@ -31,13 +31,14 @@ namespace mediapipeline
         Options ();
        ~Options ();
 
-      void loadJSON (const std::string);
+      gboolean loadJSON (const std::string);
 
       int getInt (const std::string);
         std::string getString (const std::string);
       bool getBoolean (const std::string);
     };
   }
+
 }
 
 #endif                          /* OPTIONS_HPP_ */

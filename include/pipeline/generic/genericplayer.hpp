@@ -25,8 +25,7 @@ namespace mediapipeline
 
     gboolean playSpi (int rate);
     //void loadSpi();
-    gboolean loadSpi (MEDIA_STREAMOPT_T * streamOpt);
-    gboolean loadSpi (MEDIA_CLIPOPT_T * clipOpt);
+    gboolean loadSpi (const std::string optionString);
     gboolean unloadSpi ();
     gboolean pauseSpi ();
     gboolean setPlaybackRateSpi (gfloat rate);

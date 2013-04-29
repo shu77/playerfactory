@@ -4,9 +4,12 @@
 #include <pipeline/player.hpp>
 #include <string>
 #include <string.h>
+#include <pipeline/utils/options.hpp>
+
 
 using namespace std;
-
+using namespace
+    mediapipeline::utils;
 #if 0
 typedef enum
 {
@@ -105,19 +108,47 @@ main (int argc, char **argv)
     std::cin.clear ();          //clear badbit flag
     std::cin.sync ();           //clear stdin stream
     std::cin.ignore (INT_MAX, '\n');
-    //std::cout <<"["<< selectnum << "]";
     switch (selectnum) {
       case 11:
       {
-        MEDIA_CLIPOPT_T clipOpt;
+        //MEDIA_CLIPOPT_T clipOpt;
         std::string mystr;
+        std::string optionstr;
         mystr.clear ();
+        optionstr.clear ();
         std::cout << "Input play URI:";
         getline (std::cin, mystr);
         std::cout << endl;
-        clipOpt.mediafile = strdup (mystr.c_str ());
-        std::cout << " -- string : " << clipOpt.mediafile << endl;
-        player->load (&clipOpt);        // pipeline created. 
+        optionstr+= " { \"clipOpt\": { ";
+        optionstr+= "\"mediafile\":"; // clipoption -> mediafile
+        optionstr+= "\"";
+        optionstr+= mystr; // value
+        optionstr+= "\"";
+        optionstr+= ", ";
+        optionstr+= "\"level\":";
+        optionstr+= "\"4207846\"";
+        //optionstr+= " } } ";
+        optionstr+= " }  ";
+
+        optionstr+= " , \"wmainfo\": { ";
+        optionstr+= " \"wmaVer\": "; // clipoption -> mediafile
+        optionstr+= "\"";       
+        optionstr+= "123456789";
+        optionstr+= "\"";
+        optionstr+= " } } ";
+
+        std::cout << " -- boost json string : " << optionstr << endl;
+#if 0 //API test locally.
+        mediapipeline::utils::Options::bsp_t op (new mediapipeline::utils::Options ());
+        // format sample..
+        //op->loadJSON(" { \"clipOpt\": { \"filename\": \"test.txt\", \"level\": \"4207846\" } }");
+        op->loadJSON((const std::string) optionstr);
+        cout << "clipOpt.mediafile : " << op->getString ("clipOpt.mediafile") << endl;
+        cout << "clipOpt.level : " << op->getInt ("clipOpt.level") << endl;
+        cout << "wmainfo.wmaVer : " << op->getString ("wmainfo.wmaVer") << endl;
+#endif
+        player->load ((const std::string)optionstr);        // pipeline created. 
+        optionstr.clear();
       }
         break;
 
@@ -149,8 +180,10 @@ main (int argc, char **argv)
 
       case 21:
       {
-        MEDIA_STREAMOPT_T streamOpt;
-        player->load (&streamOpt);      // pipeline created. 
+        //MEDIA_STREAMOPT_T streamOpt;
+        std::string optionstr;
+
+        player->load (optionstr);      // pipeline created. 
       }
         break;
 
@@ -158,7 +191,6 @@ main (int argc, char **argv)
       default:
         break;
     }
-    //std::cin.clear();
   } while (selectnum != 99);
 
 

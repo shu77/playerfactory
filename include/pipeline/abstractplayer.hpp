@@ -33,8 +33,7 @@ namespace mediapipeline
       Pipeline::bsp_t getPipeline ();
 
     //void load();
-    gboolean load (MEDIA_STREAMOPT_T * streamOpt);
-    gboolean load (MEDIA_CLIPOPT_T * clipOpt);
+    gboolean load (const std::string optionString);
     gboolean unload ();
     gboolean play (int rate);
     gboolean pause ();
@@ -61,8 +60,7 @@ namespace mediapipeline
 
   public:                      // for derived players
     //virtual void loadSpi() = 0;
-      virtual gboolean loadSpi (MEDIA_STREAMOPT_T * streamOpt) = 0;
-    virtual gboolean loadSpi (MEDIA_CLIPOPT_T * clipOpt) = 0;
+    virtual gboolean loadSpi (const std::string optionString) = 0;
     virtual gboolean unloadSpi () = 0;
     virtual gboolean playSpi (int rate) = 0;
     virtual gboolean pauseSpi () = 0;

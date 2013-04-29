@@ -38,9 +38,7 @@ namespace mediapipeline
     };
 
     virtual void addEventListener (PlayEventListener::bsp_t listener) = 0;
-
-    virtual gboolean load (MEDIA_STREAMOPT_T * streamOpt) = 0;
-    virtual gboolean load (MEDIA_CLIPOPT_T * clipOpt) = 0;
+    virtual gboolean load (const std::string optionString) = 0;
     virtual gboolean unload () = 0;
     virtual gboolean pause () = 0;
 

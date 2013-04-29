@@ -27,38 +27,6 @@ GenericPipeline::GenericPipeline ()
 
 }
 
-gboolean GenericPipeline::initSpi_pre ()
-{
-  m_pipeHandle = gst_element_factory_make ("playbin2", NULL);
-  if (m_pipeHandle) {
-    m_playbinVersion = 2;       //playbin2
-    int
-        flags = 0;
-    //GST_PLAY_FLAG_NATIVE_VIDEO omits configuration of ffmpegcolorspace and videoscale
-    g_object_get (G_OBJECT (m_pipeHandle), "flags", &flags, NULL);
-    flags |= GST_PLAY_FLAG_NATIVE_VIDEO;
-    g_object_set (G_OBJECT (m_pipeHandle), "flags", flags, NULL);
-    cout << "genericpipeline] created playbin2 pipeline" << endl;
-
-  } else {
-    m_pipeHandle = gst_element_factory_make ("playbin", NULL);
-    if (m_pipeHandle) {
-      cout << "genericpipeline] created playbin pipeline" << endl;
-      m_playbinVersion = 1;     //playbin
-    } else {
-      cout << "genericpipeline] fail create playbin pipeline" << endl;
-    }
-
-  }
-}
-
-gboolean GenericPipeline::initSpi_post ()
-{
-  // connect source notify. 
-  g_signal_connect (G_OBJECT (m_pipeHandle), "notify::source",
-      G_CALLBACK (playbinNotifySource), this);
-}
-
 GenericPipeline::~GenericPipeline ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
@@ -85,7 +53,7 @@ bool GenericPipeline::loadFromURI ()
   return true;
 }
 
-bool GenericPipeline::handleURI (MEDIA_CLIPOPT_T * clipOpt)
+bool GenericPipeline::handleURI ()
 {
   if (m_pipeHandle) {
     GFile *
@@ -94,31 +62,38 @@ bool GenericPipeline::handleURI (MEDIA_CLIPOPT_T * clipOpt)
         pNewUri = NULL;
     char *
         pTmpPath = NULL;
-
-    if (!strncmp (clipOpt->mediafile, "mms://", strlen ("mms://"))) {
+    std::cout << "handleURI"<< endl;
+    
+    /* get pipline options handler */
+    Options::bsp_t options = getOptionsHandler ();
+    /* get value from options handler */
+    std::string filename = options->getString ("clipOpt.mediafile");
+    std::cout << "filename=" << filename << endl;
+    
+    if (!strncmp (filename.c_str(), "mms://", strlen ("mms://"))) {
       // fix for maxdome FF issue. (set serverside tirck enable at mms streamming.)
       //TODO: BASIC_PLYR_CTRL_SetMmsURI(pPipeContainerHandle, true);
     }
     // DQMS 1206-00199 (mlm can't filtering this)
     // not supported known type media filtering.
-    if ((strstr (clipOpt->mediafile, ".ogm") != NULL)
-        || (strstr (clipOpt->mediafile, ".ogv") != NULL)
-        || (strstr (clipOpt->mediafile, ".OGM") != NULL)
-        || (strstr (clipOpt->mediafile, ".OGV") != NULL)) {
+    if ((strstr (filename.c_str(), ".ogm") != NULL)
+        || (strstr (filename.c_str(), ".ogv") != NULL)
+        || (strstr (filename.c_str(), ".OGM") != NULL)
+        || (strstr (filename.c_str(), ".OGV") != NULL)) {
       //TODO :: API_BASIC_EVENT_Notify(pPipeContainerHandle, MEDIA_CB_MSG_ERR_PLAYING);
       return false;
     }
     /* this allows non-URI type of files in the thumbnailer and so on */
-    pTmpFile = g_file_new_for_commandline_arg (clipOpt->mediafile);
+    pTmpFile = g_file_new_for_commandline_arg (filename.c_str());
     if (pTmpFile == NULL) {
-      pNewUri = g_strdup (clipOpt->mediafile);
+      pNewUri = g_strdup (filename.c_str());
     } else {
       pTmpPath = g_file_get_path (pTmpFile);
       if (pTmpPath) {
         pNewUri = g_filename_to_uri (pTmpPath, NULL, NULL);
         g_free (pTmpPath);
       } else {
-        pNewUri = g_strdup (clipOpt->mediafile);
+        pNewUri = g_strdup (filename.c_str());
       }
       g_object_unref (pTmpFile);
     }
@@ -132,7 +107,7 @@ bool GenericPipeline::handleURI (MEDIA_CLIPOPT_T * clipOpt)
   return true;
 }
 
-bool GenericPipeline::setExtraElementOption (MEDIA_CLIPOPT_T * clipOpt)
+gboolean GenericPipeline::setExtraElementOption ()
 {
   if (m_pipeHandle) {
 #if 0                           //TODO: ±¸Çö..
@@ -164,11 +139,40 @@ bool GenericPipeline::setExtraElementOption (MEDIA_CLIPOPT_T * clipOpt)
   return true;
 }
 
-gboolean GenericPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
+gboolean GenericPipeline::loadSpi_pre ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+
+  m_pipeHandle = gst_element_factory_make ("playbin2", NULL);
+  if (m_pipeHandle) {
+    m_playbinVersion = 2;       //playbin2
+    int flags = 0;
+    //GST_PLAY_FLAG_NATIVE_VIDEO omits configuration of ffmpegcolorspace and videoscale
+    g_object_get (G_OBJECT (m_pipeHandle), "flags", &flags, NULL);
+    flags |= GST_PLAY_FLAG_NATIVE_VIDEO;
+    g_object_set (G_OBJECT (m_pipeHandle), "flags", flags, NULL);
+    cout << "genericpipeline] created playbin2 pipeline" << endl;
+  } else {
+    m_pipeHandle = gst_element_factory_make ("playbin", NULL);
+    if (m_pipeHandle) {
+      cout << "genericpipeline] created playbin pipeline" << endl;
+      m_playbinVersion = 1;     //playbin
+    } else {
+      cout << "genericpipeline] fail create playbin pipeline" << endl;
+    }
+  }
+  return true;
+}
+
+gboolean GenericPipeline::loadSpi_post ()
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+
+  // connect source notify. 
+  g_signal_connect (G_OBJECT (m_pipeHandle), "notify::source", G_CALLBACK (playbinNotifySource), this);
+
   // setting values
-  if (handleURI (clipOpt) == false)
+  if (handleURI () == false)
     return false;
 
   // connect signals
@@ -189,16 +193,6 @@ gboolean GenericPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
     return false;
 
   return true;
-}
-
-
-gboolean
-    GenericPipeline::load (MEDIA_STREAMOPT_T * streamOpt,
-    MEDIA_FORMAT_T mediaFormatType)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
-  //this->loadSpi(clipOpt);
-  // not supported API.
 }
 
 /* for prebuffering action */

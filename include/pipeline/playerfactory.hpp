@@ -13,6 +13,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
 #include <boost/utility.hpp>
+#include <pipeline/utils/options.hpp>
 #include <pipeline/player.hpp>
 
 namespace mediapipeline

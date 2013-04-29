@@ -41,23 +41,14 @@ gboolean GenericPlayer::pauseSpi ()
   return pipeline->pause ();
 }
 
-gboolean GenericPlayer::loadSpi (MEDIA_STREAMOPT_T * streamOpt)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-
-  std::cout << "not supported API at genericPlayer. " << endl;
-}
-
-gboolean GenericPlayer::loadSpi (MEDIA_CLIPOPT_T * clipOpt)
+gboolean GenericPlayer::loadSpi (const std::string optionString)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
 
   Pipeline::bsp_t pipeline = getPipeline ();
 //      pipeline.reset(new GenericPipeline()); //moved to create time..
 //      setPipeline(pipeline);
-
-  pipeline->init ();            //create gst pipeline
-  pipeline->load (clipOpt);
+  pipeline->load (optionString);
 }
 
 gboolean GenericPlayer::unloadSpi ()

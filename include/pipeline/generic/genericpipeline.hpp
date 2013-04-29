@@ -27,21 +27,18 @@ namespace mediapipeline
   public:
      ~GenericPipeline ();
 
-    gboolean initSpi_pre ();
-    gboolean initSpi_post ();
+    gboolean loadSpi_pre ();
+    gboolean loadSpi_post ();
 
 
     //void load();
-    gboolean load (MEDIA_STREAMOPT_T * streamOpt,
-        MEDIA_FORMAT_T mediaFormatType);
-    gboolean load (MEDIA_CLIPOPT_T * clipOpt);
     //void unload();
     //bool play(int rate);
     //gboolean pause();
     //void stop();
     //bool seek(gint64 ms);
     bool loadFromURI ();
-    bool handleURI (MEDIA_CLIPOPT_T * clipOpt);
+    bool handleURI ();
     gboolean isReadyToPlaySpi ();
     //gint64 duration() const;
     //gint64 position() const;
@@ -52,7 +49,7 @@ namespace mediapipeline
     //gboolean isSeekable();
     //gboolean isSeekable(gpointer data);
 
-    bool setExtraElementOption (MEDIA_CLIPOPT_T * clipOpt);
+    gboolean setExtraElementOption ();
 
     //Error error() const;
     GString errorString () const;

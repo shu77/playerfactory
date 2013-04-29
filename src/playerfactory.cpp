@@ -74,13 +74,16 @@ Player::bsp_t PlayerFactory::create (unsigned int transport_type)
   LOG_FUNCTION_SCOPE_NORMAL_D ("PlayerFactory");
   Player::bsp_t player;
 
-// 1. check transport type.
+  // 1. check transport type.
   if (transport_type >= MEDIA_TRANS_PLAYBIN_START
       && transport_type <= MEDIA_TRANS_PLAYBIN_START) {
-    cout << "create GenericPlayer";
+    cout << "create GenericPlayer" << endl;
     player.reset (new GenericPlayer ());
-  } else {
-  }                             //custom pipeline create.
+  } 
+  else
+  {
+
+  }
 
   return player;
 }

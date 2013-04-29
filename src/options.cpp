@@ -28,13 +28,33 @@ Options::~Options ()
   LOG_FUNCTION_SCOPE_NORMAL_D ("Options");
 }
 
-void
+gboolean
 Options::loadJSON (const std::string json)
 {
   std::stringstream ss (json);
   LOG_FUNCTION_SCOPE_NORMAL_D ("Options");
+  gboolean result = false;
 
-  boost::property_tree::json_parser::read_json (ss, this->pt);
+
+  try
+  {
+    boost::property_tree::json_parser::read_json (ss, this->pt);
+    
+    boost::property_tree::basic_ptree<std::string,std::string>::const_iterator iter = this->pt.begin(),iterEnd = this->pt.end();
+        for(;iter != iterEnd;++iter)
+        {
+            std::cout << iter->first << " " << iter->second.get_value<std::string>() << std::endl;
+        }
+        result = true;
+        
+    }
+    catch(boost::property_tree::json_parser::json_parser_error &je)
+    {
+        std::cout << "Error parsing: " << je.filename() << " on line: " << je.line() << std::endl;
+        std::cout << je.message() << std::endl;
+        result = false;
+    }
+    return result;
 }
 
 int

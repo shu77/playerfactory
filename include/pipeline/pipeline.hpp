@@ -18,7 +18,16 @@
 #include <pipeline/event/playeventlistener.hpp>
 #include <gst/app/gstappsrc.h>
 //#include <gst/app/gstappbuffer.h>
-//#include <gst/app/gstappsrc.h>
+//#include <gst/app/gstappsrc.h>\
+#include <sstream>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/foreach.hpp>
+#include <glibmm-utils/glibmm-utils.h>
+#include <pipeline/utils/options.hpp>
+
+using namespace
+    mediapipeline::utils;
 
 using namespace std;
 
@@ -74,6 +83,8 @@ namespace mediapipeline
     Pipeline ();
     BufferController::bsp_t _bufferControl;
     void setBufferController (BufferController::bsp_t busController);
+    Options::bsp_t _options;
+    void setOptionsHandler (Options::bsp_t optionsHandler);
 
   public:
     typedef boost::shared_ptr < Pipeline > bsp_t;
@@ -110,15 +121,12 @@ namespace mediapipeline
 
       virtual ~ Pipeline ();
       BufferController::bsp_t getBufferController ();
-
-    gboolean init ();
-    virtual gboolean initSpi_pre () = 0;
-    virtual gboolean initSpi_post () = 0;
-
-    //virtual void load() = 0;
-    virtual gboolean load (MEDIA_STREAMOPT_T * streamOpt,
-        MEDIA_FORMAT_T mediaFormatType) = 0;
-    virtual gboolean load (MEDIA_CLIPOPT_T * clipOpt) = 0;
+      Options::bsp_t getOptionsHandler ();
+    
+    virtual gboolean loadSpi_pre () = 0;
+    gboolean load (const std::string optionString);
+    virtual gboolean loadSpi_post () = 0;
+    
     /*virtual */ gboolean unload ();
     // = 0;
     /*virtual */ gboolean play (int rate = 1);

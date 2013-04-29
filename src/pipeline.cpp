@@ -19,7 +19,6 @@
 
 using namespace mediapipeline;
 
-
 Pipeline::Pipeline ()
 {
 
@@ -47,6 +46,12 @@ Pipeline::Pipeline ()
   buffercontrol.reset (new BufferController ());
   setBufferController (buffercontrol);  // save to abstractplayer.
 
+  std::cout << "create options handle class" << endl;
+  /* create options handle class */
+  Options::bsp_t optionsHndl = getOptionsHandler();
+  optionsHndl.reset (new Options ());
+  setOptionsHandler (optionsHndl);  
+
 }
 
 Pipeline::~Pipeline ()
@@ -55,14 +60,26 @@ Pipeline::~Pipeline ()
 }
 
 //------------------------------------------start basic controls //
-gboolean Pipeline::init ()
+gboolean Pipeline::load (const std::string optionString)
 {
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
 
-  if (this->initSpi_pre () == false)    //custom pipeline control (pre) < create gstreamer pipeline here. > m_pipeHandle
+
+  /* get pipline options handler */
+  Options::bsp_t options = getOptionsHandler ();
+  /* save values to options handler */
+  if(options->loadJSON(optionString) == false)
+  {
+    std::cout << "options Json format invalid !!!" << endl;
+    return false;
+  }
+
+
+  if (this->loadSpi_pre () == false)    //custom pipeline control (pre) < create gstreamer pipeline here. > m_pipeHandle
     return false;
 /* common gstreamer control start */
 
-  std::cout << " >> init " << endl;
+  std::cout << " >> load " << endl;
 
   connectGstBusCallback ();
 
@@ -91,7 +108,7 @@ gboolean Pipeline::init ()
   cout << "pipeline] create finish " << endl;
 
 /* common gstreamer control end */
-  if (this->initSpi_post () == false)   //custom pipeline control (post)
+  if (this->loadSpi_post () == false)   //custom pipeline control (post)
     return false;
 
   return true;
@@ -391,6 +408,17 @@ Pipeline::setBufferController (BufferController::bsp_t busController)
 BufferController::bsp_t Pipeline::getBufferController ()
 {
   return this->_bufferControl;
+}
+
+void
+Pipeline::setOptionsHandler (Options::bsp_t optionsHandler)
+{
+  this->_options = optionsHandler;
+}
+
+Options::bsp_t Pipeline::getOptionsHandler ()
+{
+  return this->_options;
 }
 
 void

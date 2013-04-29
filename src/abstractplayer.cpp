@@ -103,22 +103,22 @@ gboolean AbstractPlayer::pause ()
   return result;
 }
 
-/*
-void AbstractPlayer::load() {
-	LOG_FUNCTION_SCOPE_NORMAL_D("AbstractPlayer");
-	this->loadSpi();
-}
-*/
-gboolean AbstractPlayer::load (MEDIA_STREAMOPT_T * streamOpt)
+gboolean AbstractPlayer::load (const std::string optionString)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->loadSpi (streamOpt);
-}
+  if(optionString.empty())
+  {
+    std::cout << "ERROR!!!!! option string empty!!!!!"<<endl;
+    return false;
+  }
 
-gboolean AbstractPlayer::load (MEDIA_CLIPOPT_T * clipOpt)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->loadSpi (clipOpt);
+  /* json format validation check heare. */
+
+  //TODO: add json format validation check.
+
+
+
+  return this->loadSpi (optionString);
 }
 
 gboolean AbstractPlayer::unload ()
