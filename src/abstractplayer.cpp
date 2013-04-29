@@ -41,14 +41,14 @@ Pipeline::bsp_t AbstractPlayer::getPipeline ()
   return this->_pipeline;
 }
 
-gboolean
-AbstractPlayer::play (int rate)
+gboolean AbstractPlayer::play (int rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
   Pipeline::State newState = Pipeline::PlayingState;
   Pipeline::State oldState = m_playertState;
 
-  gboolean result = false;
+  gboolean
+      result = false;
 
   m_bFeedPossible = true;
   if (this->isReadyToPlay () == true) {
@@ -71,13 +71,13 @@ AbstractPlayer::play (int rate)
   return result;
 }
 
-gboolean
-AbstractPlayer::pause ()
+gboolean AbstractPlayer::pause ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
   Pipeline::State newState = Pipeline::PausedState;
   Pipeline::State oldState = m_playertState;
-  gboolean result = false;
+  gboolean
+      result = false;
 
   if (this->getPendingPipelineState () != Pipeline::PausedState) {
     result = this->pauseSpi ();
@@ -109,22 +109,19 @@ void AbstractPlayer::load() {
 	this->loadSpi();
 }
 */
-gboolean
-AbstractPlayer::load (MEDIA_STREAMOPT_T * streamOpt)
+gboolean AbstractPlayer::load (MEDIA_STREAMOPT_T * streamOpt)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
   return this->loadSpi (streamOpt);
 }
 
-gboolean
-AbstractPlayer::load (MEDIA_CLIPOPT_T * clipOpt)
+gboolean AbstractPlayer::load (MEDIA_CLIPOPT_T * clipOpt)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
   return this->loadSpi (clipOpt);
 }
 
-gboolean
-AbstractPlayer::unload ()
+gboolean AbstractPlayer::unload ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
   if (m_playertState != Pipeline::StoppedState) {
@@ -134,80 +131,79 @@ AbstractPlayer::unload ()
   return true;
 }
 
-gboolean
-AbstractPlayer::setPlaybackRate (gfloat rate)
+gboolean AbstractPlayer::setPlaybackRate (gfloat rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
   return this->setPlaybackRateSpi (rate);
 }
 
 
-gint64
-AbstractPlayer::duration () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->durationSpi ();
-}
+     gint64 AbstractPlayer::duration () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+       return
+           this->
+       durationSpi ();
+     }
 
 gint64
-AbstractPlayer::position () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->positionSpi ();
-}
+     AbstractPlayer::position () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+       return this->positionSpi ();
+     }
 
 gint
-AbstractPlayer::volume () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->volumeSpi ();
-}
+     AbstractPlayer::volume () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+       return this->volumeSpi ();
+     }
 
 gboolean
-AbstractPlayer::isMuted () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->isMutedSpi ();
-}
+     AbstractPlayer::isMuted () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+       return this->isMutedSpi ();
+     }
 
 gboolean
-AbstractPlayer::isAudioAvailable () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->isAudioAvailableSpi ();
-}
+     AbstractPlayer::isAudioAvailable () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+       return this->isAudioAvailableSpi ();
+     }
 
 gboolean
-AbstractPlayer::isVideoAvailable () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->isVideoAvailableSpi ();
-}
+     AbstractPlayer::isVideoAvailable () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+       return this->isVideoAvailableSpi ();
+     }
 
 gboolean
-AbstractPlayer::isSeekable () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->isSeekableSpi ();
-}
+     AbstractPlayer::isSeekable () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+       return this->isSeekableSpi ();
+     }
 
 gfloat
-AbstractPlayer::playbackRate () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->playbackRateSpi ();
-}
+     AbstractPlayer::playbackRate () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+       return this->playbackRateSpi ();
+     }
 
 //Error AbstractPlayer::error() const;
 GString
-AbstractPlayer::errorString () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  return this->errorStringSpi ();
-}
+     AbstractPlayer::errorString () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+       return this->errorStringSpi ();
+     }
 
-void
-AbstractPlayer::updateState (Pipeline::State newState)
+     void AbstractPlayer::updateState (Pipeline::State newState)
 {
   //Pipeline::MediaStatus oldStatus = m_mediaStatus;
   Pipeline::State saveState = m_playertState;
@@ -216,8 +212,7 @@ AbstractPlayer::updateState (Pipeline::State newState)
 
 }
 
-bool
-AbstractPlayer::setGstreamerDebugLevel (guint select, gchar * category,
+bool AbstractPlayer::setGstreamerDebugLevel (guint select, gchar * category,
     GstDebugLevel level)
 {
 

@@ -83,8 +83,7 @@ CustomPipeline::~CustomPipeline ()
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 }
 
-bool
-CustomPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
+bool CustomPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
@@ -92,8 +91,7 @@ CustomPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
 }
 
 
-bool
-CustomPipeline::load (MEDIA_STREAMOPT_T * streamOpt,
+bool CustomPipeline::load (MEDIA_STREAMOPT_T * streamOpt,
     MEDIA_FORMAT_T mediaFormatType)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
@@ -110,8 +108,7 @@ CustomPipeline::unload ()
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 }
 
-bool
-CustomPipeline::play (int rate)
+bool CustomPipeline::play (int rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
@@ -119,7 +116,7 @@ CustomPipeline::play (int rate)
 }
 
 MEDIA_STATUS_T
-CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
+    CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
     const gchar * pSrcPath,
     const gchar * pWritePath,
     guint64 startOffset, MEDIA_CUSTOM_CONTENT_INFO_T * pstContentInfo)
@@ -256,10 +253,10 @@ CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
 
 }
 
-guint8
-CustomPipeline::_CheckContentType (void)
+guint8 CustomPipeline::_CheckContentType (void)
 {
-  guint8 numOfSrc = 0;
+  guint8
+      numOfSrc = 0;
 
   LMF_DBG_PRINT ("[%s:%d] vcodec= 0x%X, acodec= 0x%X\n", __FUNCTION__, __LINE__,
       m_stContentInfo.vcodec, m_stContentInfo.acodec);
@@ -282,13 +279,15 @@ CustomPipeline::_CheckContentType (void)
 }
 
 
-MEDIA_STATUS_T
-CustomPipeline::_addSrcElement_Push (void)
+MEDIA_STATUS_T CustomPipeline::_addSrcElement_Push (void)
 {
-  MEDIA_SRC_T *pSrcInfo;
-  MEDIA_STATUS_T retVal = MEDIA_OK;
+  MEDIA_SRC_T *
+      pSrcInfo;
+  MEDIA_STATUS_T
+      retVal = MEDIA_OK;
 
-  guint bufferMaxLevel = 0, bufferMinPercent = 0, preBufferLevel = 0;
+  guint
+      bufferMaxLevel = 0, bufferMinPercent = 0, preBufferLevel = 0;
 
   LMF_DBG_PRINT ("[%s:%d][PUSH]\n", __FUNCTION__, __LINE__);
 
@@ -353,7 +352,7 @@ CustomPipeline::_addSrcElement_Push (void)
   /* changbok:Todo check callback compile error */
 //  g_signal_connect(pSrcInfo->pSrcElement, "need-data", G_CALLBACK(_LMF_StartFeed), pSrcInfo);
 
-      // changbok : need to check compile error
+  // changbok : need to check compile error
   g_signal_connect (G_OBJECT (pSrcInfo->pSrcElement), "enough-data",
       G_CALLBACK (&_callbackStopFeed), this);
   g_signal_connect (G_OBJECT (pSrcInfo->pSrcElement), "seek-data",
@@ -381,7 +380,7 @@ CustomPipeline::_addSrcElement_Push (void)
 }
 
 MEDIA_STATUS_T
-CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
+    CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
 {
   MEDIA_SRC_T *pSrcInfo;
   MEDIA_STATUS_T retVal = MEDIA_OK;
@@ -524,8 +523,8 @@ CustomPipeline::_callbackStopFeed (GstElement * element, MEDIA_SRC_T * app)
 
 #if 0                           /* jhtark - webos refactory - temp [ 추후 진행  ] */
     queuedSize =
-        gst_app_src_get_queued_bytes (GST_APP_SRC (app->
-            pSrcElement /*m_stSrcInfo[app->srcIdx].pSrcElement */ ));
+        gst_app_src_get_queued_bytes (GST_APP_SRC (app->pSrcElement
+            /*m_stSrcInfo[app->srcIdx].pSrcElement */ ));
 #endif
 
     LMF_DBG_PRINT ("[Buffer Full]__________  stop feeding... (%s:%llu) \n",
@@ -555,7 +554,7 @@ CustomPipeline::_callbackStopFeed (GstElement * element, MEDIA_SRC_T * app)
 }
 
 gboolean
-CustomPipeline::_callbackSeekData (GstElement * element, guint64 offset,
+    CustomPipeline::_callbackSeekData (GstElement * element, guint64 offset,
     MEDIA_SRC_T * app)
 {
   LMF_DBG_PRINT ("[SEEK DATA]__________ offset:%lld / IDX_%s \n", offset,
@@ -595,11 +594,11 @@ CustomPipeline::_callbackStartFeed (GstElement * element, guint32 size,
   }
 }
 
-MEDIA_STATUS_T
-CustomPipeline::_initValue (void)
+MEDIA_STATUS_T CustomPipeline::_initValue (void)
 {
 
-  GError *err;
+  GError *
+      err;
   LMF_DBG_PRINT ("[%s] ----- start -----\n", __FUNCTION__);
 
   // thread init
@@ -614,7 +613,6 @@ CustomPipeline::_initValue (void)
 
     return MEDIA_ERROR;
   }
-
 #if 0                           /* jhtark - webos refactory - temp [ global 변수 정리 필요 ] */
   gbReceivedEos[ch] = FALSE;
   _gbSeekLog = FALSE;
@@ -833,10 +831,10 @@ exit_addVideoPad:
   return;
 }
 
-MEDIA_STATUS_T
-CustomPipeline::_setPropertyOnVideo (void)
+MEDIA_STATUS_T CustomPipeline::_setPropertyOnVideo (void)
 {
-  MEDIA_STATUS_T retVal = MEDIA_OK;
+  MEDIA_STATUS_T
+      retVal = MEDIA_OK;
 
   if (m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_SCREEN_SHARE) {
     //widi property change 반영
@@ -903,10 +901,10 @@ CustomPipeline::_setPropertyOnVideo (void)
   return retVal;
 }
 
-MEDIA_STATUS_T
-CustomPipeline::_addVideoElement (void)
+MEDIA_STATUS_T CustomPipeline::_addVideoElement (void)
 {
-  MEDIA_STATUS_T retVal = MEDIA_ERROR;
+  MEDIA_STATUS_T
+      retVal = MEDIA_ERROR;
 
   if (!pVideoQueueElement) {
     LMF_DBG_PRINT ("%s.%d: pVideoQueueElement is NULL -> Start to create\n",
@@ -977,10 +975,10 @@ CustomPipeline::_findDemux (gchar ** pDemuxName)
   }
 }
 
-MEDIA_STATUS_T
-CustomPipeline::_addDemuxElement (void)
+MEDIA_STATUS_T CustomPipeline::_addDemuxElement (void)
 {
-  gchar *pDemuxName = NULL;
+  gchar *
+      pDemuxName = NULL;
 
   // find demux element
   _findDemux (&pDemuxName);
@@ -1052,8 +1050,8 @@ CustomPipeline::_addDemuxElement (void)
 
 
 MEDIA_STATUS_T
-CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize, guint64 pts,
-    MEDIA_DATA_CHANNEL_T esData)
+    CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize,
+    guint64 pts, MEDIA_DATA_CHANNEL_T esData)
 {
   GstBuffer *pAppbuf = NULL;
   GstFlowReturn ret;
@@ -1075,73 +1073,71 @@ CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize, guint64 pts,
 }
 
 
+     gint64 CustomPipeline::duration () constconst const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+     }
+
 gint64
-CustomPipeline::duration () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+     CustomPipeline::position () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
-}
-
-gint64
-CustomPipeline::position () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
+     }
 
 gint
-CustomPipeline::volume () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+     CustomPipeline::volume () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
-}
-
-gboolean
-CustomPipeline::isMuted () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
+     }
 
 gboolean
-CustomPipeline::isAudioAvailable () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+     CustomPipeline::isMuted () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
-}
-
-gboolean
-CustomPipeline::isVideoAvailable () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
+     }
 
 gboolean
-CustomPipeline::isSeekable () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+     CustomPipeline::isAudioAvailable () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
-}
+     }
+
+gboolean
+     CustomPipeline::isVideoAvailable () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+     }
+
+gboolean
+     CustomPipeline::isSeekable () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+     }
 
 gfloat
-CustomPipeline::playbackRate () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+     CustomPipeline::playbackRate () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
-}
+     }
 
 //Error CustomPipeline::error() const;
 GString
-CustomPipeline::errorString () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+     CustomPipeline::errorString () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
-}
+     }
 
-void
-CustomPipeline::playbinNotifySource (GObject * pObject, GParamSpec * pParam,
-    gpointer u_data)
+     void CustomPipeline::playbinNotifySource (GObject * pObject,
+    GParamSpec * pParam, gpointer u_data)
 {
   CustomPipeline *genericPipeline =
       reinterpret_cast < CustomPipeline * >(u_data);

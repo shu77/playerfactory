@@ -24,8 +24,7 @@ GenericPlayer::~GenericPlayer ()
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
 }
 
-gboolean
-GenericPlayer::playSpi (int rate)
+gboolean GenericPlayer::playSpi (int rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
   LOG_D ("playing", "GenericPlayer");
@@ -34,8 +33,7 @@ GenericPlayer::playSpi (int rate)
   return true;
 }
 
-gboolean
-GenericPlayer::pauseSpi ()
+gboolean GenericPlayer::pauseSpi ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
   LOG_D ("pause", "GenericPlayer");
@@ -43,16 +41,14 @@ GenericPlayer::pauseSpi ()
   return pipeline->pause ();
 }
 
-gboolean
-GenericPlayer::loadSpi (MEDIA_STREAMOPT_T * streamOpt)
+gboolean GenericPlayer::loadSpi (MEDIA_STREAMOPT_T * streamOpt)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
 
   std::cout << "not supported API at genericPlayer. " << endl;
 }
 
-gboolean
-GenericPlayer::loadSpi (MEDIA_CLIPOPT_T * clipOpt)
+gboolean GenericPlayer::loadSpi (MEDIA_CLIPOPT_T * clipOpt)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
 
@@ -64,16 +60,14 @@ GenericPlayer::loadSpi (MEDIA_CLIPOPT_T * clipOpt)
   pipeline->load (clipOpt);
 }
 
-gboolean
-GenericPlayer::unloadSpi ()
+gboolean GenericPlayer::unloadSpi ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
   Pipeline::bsp_t pipeline = getPipeline ();
   pipeline->unload ();
 }
 
-gboolean
-GenericPlayer::isReadyToPlay ()
+gboolean GenericPlayer::isReadyToPlay ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
   Pipeline::bsp_t pipeline = getPipeline ();
@@ -88,8 +82,7 @@ Pipeline::State GenericPlayer::getPendingPipelineState ()
 }
 
 
-gboolean
-GenericPlayer::setPlaybackRateSpi (gfloat rate)
+gboolean GenericPlayer::setPlaybackRateSpi (gfloat rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
   Pipeline::bsp_t pipeline = getPipeline ();
@@ -97,76 +90,75 @@ GenericPlayer::setPlaybackRateSpi (gfloat rate)
 }
 
 
-gint64
-GenericPlayer::durationSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->duration();
-}
+     gint64 GenericPlayer::durationSpi () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->duration();
+     }
 
 gint64
-GenericPlayer::positionSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->position();
-}
+     GenericPlayer::positionSpi () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->position();
+     }
 
 gint
-GenericPlayer::volumeSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->volume();
-}
+     GenericPlayer::volumeSpi () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->volume();
+     }
 
 gboolean
-GenericPlayer::isMutedSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->isMuted();
-}
+     GenericPlayer::isMutedSpi () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->isMuted();
+     }
 
 gboolean
-GenericPlayer::isAudioAvailableSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->isAudioAvailable();
-}
+     GenericPlayer::isAudioAvailableSpi () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->isAudioAvailable();
+     }
 
 gboolean
-GenericPlayer::isVideoAvailableSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->isVideoAvailable();
-}
+     GenericPlayer::isVideoAvailableSpi () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->isVideoAvailable();
+     }
 
 gboolean
-GenericPlayer::isSeekableSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->isSeekable();
-}
+     GenericPlayer::isSeekableSpi () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->isSeekable();
+     }
 
 gfloat
-GenericPlayer::playbackRateSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->playbackRate();
-}
+     GenericPlayer::playbackRateSpi () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->playbackRate();
+     }
 
 
 //Error error() const = 0;
 GString
-GenericPlayer::errorStringSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->errorString();
-}
+     GenericPlayer::errorStringSpi () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->errorString();
+     }

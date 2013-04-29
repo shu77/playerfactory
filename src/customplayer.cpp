@@ -86,78 +86,77 @@ CustomPlayer::unloadSpi ()
 }
 
 
-gint64
-CustomPlayer::durationSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->duration();
-}
+     gint64 CustomPlayer::durationSpi () constconst const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->duration();
+     }
 
 gint64
-CustomPlayer::positionSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->position();
-}
+     CustomPlayer::positionSpi () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->position();
+     }
 
 gint
-CustomPlayer::volumeSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->volume();
-}
+     CustomPlayer::volumeSpi () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->volume();
+     }
 
 gboolean
-CustomPlayer::isMutedSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->isMuted();
-}
+     CustomPlayer::isMutedSpi () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->isMuted();
+     }
 
 gboolean
-CustomPlayer::isAudioAvailableSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->isAudioAvailable();
-}
+     CustomPlayer::isAudioAvailableSpi () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->isAudioAvailable();
+     }
 
 gboolean
-CustomPlayer::isVideoAvailableSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->isVideoAvailable();
-}
+     CustomPlayer::isVideoAvailableSpi () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->isVideoAvailable();
+     }
 
 gboolean
-CustomPlayer::isSeekableSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->isSeekable();
-}
+     CustomPlayer::isSeekableSpi () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->isSeekable();
+     }
 
 gfloat
-CustomPlayer::playbackRateSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->playbackRate();
-}
+     CustomPlayer::playbackRateSpi () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->playbackRate();
+     }
 
 
 //Error error() const = 0;
 GString
-CustomPlayer::errorStringSpi () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //return pipeline->errorString();
-}
+     CustomPlayer::errorStringSpi () const const const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+       //Pipeline::bsp_t pipeline = getPipeline();
+       //return pipeline->errorString();
+     }
 
 //end of file 

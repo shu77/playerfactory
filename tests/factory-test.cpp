@@ -76,14 +76,11 @@ main (int argc, char **argv)
   //player->setGstreamerDebugLevel(0, 0, GST_LEVEL_TRACE);
 
   do {
-    std::
-        cout <<
+    std::cout <<
         "============================================================= \n";
-    std::
-        cout <<
+    std::cout <<
         " WebOs - mediapipeline CLI(command line interface) debug menu \n";
-    std::
-        cout <<
+    std::cout <<
         "============================================================= \n";
     std::cout << " 11. load (playbin)\n";
     std::cout << " 12. play \n";
@@ -91,16 +88,13 @@ main (int argc, char **argv)
     std::cout << " 17. setPlaybackRate \n";
     std::cout << " 18. unload \n";
     std::cout << " 19. get duration \n";
-    std::
-        cout <<
+    std::cout <<
         "============================================================= \n";
     std::cout << " 21. load (stream)\n";
-    std::
-        cout <<
+    std::cout <<
         "============================================================= \n";
     std::cout << " 99. Exit \n";
-    std::
-        cout <<
+    std::cout <<
         "============================================================= \n";
     std::cin.clear ();          //clear badbit flag
     std::cin.sync ();           //clear stdin stream

@@ -55,8 +55,7 @@ Pipeline::~Pipeline ()
 }
 
 //------------------------------------------start basic controls //
-gboolean
-Pipeline::init ()
+gboolean Pipeline::init ()
 {
 
   if (this->initSpi_pre () == false)    //custom pipeline control (pre) < create gstreamer pipeline here. > m_pipeHandle
@@ -78,7 +77,8 @@ Pipeline::init ()
   g_object_set (G_OBJECT (m_pipeHandle), "buffer-duration", (gint64) (0), NULL);
 
   // connect volume notify.
-  double volume = 1.0;
+  double
+      volume = 1.0;
   g_object_get (G_OBJECT (m_pipeHandle), "volume", &volume, NULL);
   m_volume = int (volume * 100);
 
@@ -97,8 +97,7 @@ Pipeline::init ()
   return true;
 }
 
-gboolean
-Pipeline::play (int rate)
+gboolean Pipeline::play (int rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
   if (m_pipeHandle) {
@@ -116,16 +115,14 @@ Pipeline::play (int rate)
 
 }
 
-gboolean
-Pipeline::unload ()
+gboolean Pipeline::unload ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
   stop ();
   return true;
 }
 
-gboolean
-Pipeline::pause ()
+gboolean Pipeline::pause ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
   if (m_pipeHandle) {
@@ -146,8 +143,7 @@ Pipeline::pause ()
 
 }
 
-gboolean
-Pipeline::stop ()
+gboolean Pipeline::stop ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
   if (m_pipeHandle) {
@@ -156,7 +152,8 @@ Pipeline::stop ()
     gst_element_set_state (m_pipeHandle, GST_STATE_NULL);
 
     m_currentPosition = 0;      //update position quickly.
-    State oldState = m_gstPipelineState;
+    State
+        oldState = m_gstPipelineState;
     m_pendingState = m_gstPipelineState = StoppedState;
 
     //finish something like video HW etc..
@@ -169,14 +166,15 @@ Pipeline::stop ()
   return true;
 }
 
-gboolean
-Pipeline::seek (gint64 ms)
+gboolean Pipeline::seek (gint64 ms)
 {
   //seek locks when the video output sink is changing and pad is blocked
   if (m_pipeHandle && !m_blockByVideoSink && m_gstPipelineState != StoppedState) {
     ms = MAX (ms, gint64 (0));
-    gint64 position = ms * 1000000;
-    bool isSeeking = gst_element_seek (m_pipeHandle,
+    gint64
+        position = ms * 1000000;
+    bool
+        isSeeking = gst_element_seek (m_pipeHandle,
         m_playbackRate,
         GST_FORMAT_TIME,
         GstSeekFlags (GST_SEEK_FLAG_ACCURATE | GST_SEEK_FLAG_FLUSH),
@@ -193,24 +191,24 @@ Pipeline::seek (gint64 ms)
   return false;
 }
 
-gboolean
-Pipeline::isSeekable ()
+gboolean Pipeline::isSeekable ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
   return isSeekable (this);
 }
 
-gboolean
-Pipeline::isSeekable (gpointer data)
+gboolean Pipeline::isSeekable (gpointer data)
 {
-  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  Pipeline *
+      self = reinterpret_cast < Pipeline * >(data);
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
 
   if (self == NULL) {
     std::cout << "isseekable) Error. LMF Player Handle is NULL!!!" << endl;
     return false;
   }
-  gboolean bCheckSeekable = false;
+  gboolean
+      bCheckSeekable = false;
 
   if (self->m_isDLNA) {
     //TODO if(_LMF_PLYR_CTRL_isNotSeekableDlnaMedia(pPlayerHandle)==true) // DLNA 에서 not seekable 한 media filtering.
@@ -219,12 +217,13 @@ Pipeline::isSeekable (gpointer data)
     std::cout << "pPlayerHandle->dlna_opval:" << self->m_dlna_opval << endl;
     // 1. check standard opvalue seekable case.
     if (self->m_dlna_opval & 0x11) {
-      std::cout << "Is (DLNA - standard) Seekable = " << (((self->
-                  m_dlna_opval & 0x11) == true) ? "O" : "X")
-          << "(opval byte based seek:" << ((self->
-              m_dlna_opval & 0x01) ? "O" : "X")
-          << "opval time based seek:" << ((self->
-              m_dlna_opval & 0x10) ? "O" : "X")
+      std::
+          cout << "Is (DLNA - standard) Seekable = " << (((self->m_dlna_opval &
+                  0x11) == true) ? "O" : "X")
+          << "(opval byte based seek:" << ((self->m_dlna_opval & 0x01) ? "O" :
+          "X")
+          << "opval time based seek:" << ((self->m_dlna_opval & 0x10) ? "O" :
+          "X")
           << "dur:" << ((self->m_bSeekableDuration == true) ? "O" : "X");
 
       bCheckSeekable = true;
@@ -269,8 +268,7 @@ Pipeline::isSeekable (gpointer data)
 
 }
 
-gboolean
-Pipeline::isReadyToPlay ()
+gboolean Pipeline::isReadyToPlay ()
 {
   return this->isReadyToPlaySpi ();
 }
@@ -286,58 +284,58 @@ Pipeline::State Pipeline::getPendingPipelineState ()
 
 
 //------------------------------------------ start get/set basic play information //
-gint64
-Pipeline::duration () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
-  return m_duration;
-}
+     gint64 Pipeline::duration () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+       return
+           m_duration;
+     }
 
 gint64
-Pipeline::position () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
-  GstFormat format = GST_FORMAT_TIME;
-  gint64 position = 0;
+     Pipeline::position () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+       GstFormat format = GST_FORMAT_TIME;
+       gint64 position = 0;
 #if (GST_VERSION_MAJOR >= 1)
-  if (m_pipeHandle
-      && gst_element_query_position (m_pipeHandle, format, &position))
+       if (m_pipeHandle
+           && gst_element_query_position (m_pipeHandle, format, &position))
 #else
-  if (m_pipeHandle
-      && gst_element_query_position (m_pipeHandle, &format, &position))
+       if (m_pipeHandle
+           && gst_element_query_position (m_pipeHandle, &format, &position))
 #endif
-    m_currentPosition = position / 1000000;
+           m_currentPosition = position / 1000000;
 
-  return m_currentPosition;
-}
+         return m_currentPosition;
+     }
 
 gint
-Pipeline::volume () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+     Pipeline::volume () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
 
-}
-
-gboolean
-Pipeline::isMuted () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
-
-}
+     }
 
 gboolean
-Pipeline::isAudioAvailable () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+     Pipeline::isMuted () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
 
-}
+     }
 
 gboolean
-Pipeline::isVideoAvailable () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+     Pipeline::isAudioAvailable () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
 
-}
+     }
+
+gboolean
+     Pipeline::isVideoAvailable () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+
+     }
 
 //------------------------------------------ end get/set basic play information //
 
@@ -345,8 +343,7 @@ Pipeline::isVideoAvailable () const const
 
 
 
-void
-Pipeline::stateChanged (Pipeline::State newState)
+     void Pipeline::stateChanged (Pipeline::State newState)
 {
 
 
@@ -457,14 +454,11 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
     if (gst_tag_get_type (tag) == G_TYPE_STRING) {
       if (!gst_tag_list_get_string_index (tag_list, tag, idx, &pTagStr)) {
         //g_assert_not_reached();
-        std::
-            cout <<
+        std::cout <<
             "Error!!! ================================================= !!!!  ";
-        std::
-            cout <<
+        std::cout <<
             "Error!!! assert gst_tag_list_get_string_index not reached. !!!!  ";
-        std::
-            cout <<
+        std::cout <<
             "Error!!! ================================================= !!!!  ";
       }
     } else if (gst_tag_get_type (tag) == GST_TYPE_BUFFER) {
@@ -478,8 +472,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
       if (pGstBuf) {
         gchar *pCapsStr = NULL;
 
-        pCapsStr =
-            ((GST_BUFFER_CAPS (pGstBuf))
+        pCapsStr = ((GST_BUFFER_CAPS (pGstBuf))
             ? (gst_caps_to_string (GST_BUFFER_CAPS (pGstBuf)))
             : (g_strdup ("unknown")));
         pTagStr =
@@ -572,16 +565,15 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
       }
 #endif
       if (bConvertInfo == false)
-        std::
-            cout << "[BUS] Unknown Container Format:" << "tag:" << tag <<
+        std::cout << "[BUS] Unknown Container Format:" << "tag:" << tag <<
             "format:" << pStr;
 
       g_free (pStr);
     }
   } else if (strcmp (tag, GST_TAG_CODEC) == 0) {
     if (gst_tag_list_get_string (tag_list, tag, &pStr)) {
-      std::
-          cout << "************** [BUS]" << tag << "(" << gst_tag_get_nick (tag)
+      std::cout << "************** [BUS]" << tag << "(" <<
+          gst_tag_get_nick (tag)
           << ")" << pStr;
       g_free (pStr);
     }
@@ -592,8 +584,8 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
       guint8 idx = 0;
       gboolean bConvertInfo = false;
 
-      std::
-          cout << "************** [BUS]" << tag << "(" << gst_tag_get_nick (tag)
+      std::cout << "************** [BUS]" << tag << "(" <<
+          gst_tag_get_nick (tag)
           << ")" << pStr;
       LMF_TO_LOWER (pStr);
 #if 0                           //TODO...
@@ -650,8 +642,8 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
 
     if (gst_tag_list_get_string (tag_list, tag, &pStr)) {
       //LMF_DBG_PRINT("************** [BUS]%s (%s): %s \n", tag, gst_tag_get_nick(tag), pStr);
-      std::
-          cout << "************** [BUS]" << tag << "(" << gst_tag_get_nick (tag)
+      std::cout << "************** [BUS]" << tag << "(" <<
+          gst_tag_get_nick (tag)
           << ")" << pStr;
 
       if (gst_tag_list_get_string (tag_list, GST_TAG_VIDEO_CODEC,
@@ -702,8 +694,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
         }
 #endif
         if (bConvertInfo == false) {
-          std::
-              cout << "[BUS] Unknown Video Codec" << "tag:" << tag << "codec:"
+          std::cout << "[BUS] Unknown Video Codec" << "tag:" << tag << "codec:"
               << pStr;
           // TODO m_source_codec |= MEDIA_VIDEO_NOT_SUPPORTED;
           // AUDIO_CODEC Tag가 올라오면 UI에 noti 보내주자.
@@ -711,8 +702,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
           // play state 이후에 TAG 올라오는 case
           if (self->m_gstPipelineState == PlayingState
               && self->m_bSendNotSupportedVideoMessageAtPlayState == false) {
-            std::
-                cout <<
+            std::cout <<
                 "[BUS]after play state : sending Unknown Video Codec message:"
                 << tag;
             self->m_bPendingNotSupportedVideoMessage = false;
@@ -722,8 +712,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
 
           } else {
             // play state 전이면 pending 하고 play state change 시에 보내자.
-            std::
-                cout <<
+            std::cout <<
                 "[BUS]before play state : pending Unknown Video Codec message:"
                 << tag;
             self->m_bPendingNotSupportedVideoMessage = true;
@@ -756,8 +745,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
         self->m_MaxBitrate = bitrate;
         std::cout << "[BUS]tag bitrate:" << bitrate << " bits/s updated ";
       } else {
-        std::
-            cout <<
+        std::cout <<
             "[BUS]tag bitrate: %u bits/s ignored (MaxBitrate = %u bits/s)\n",
             bitrate, self->m_MaxBitrate;
       }
@@ -824,8 +812,7 @@ Pipeline::handleStateMsgPlay (gpointer data)
       }
 
       if (LMF_PLAYBIN2_CheckPendingMultiTrackSetting (pPlayerHandle) == false) {
-        std::
-            cout << "[BUS][CB]error set pending_multi_track_setting!!! " <<
+        std::cout << "[BUS][CB]error set pending_multi_track_setting!!! " <<
             endl;
       }
 #endif
@@ -835,20 +822,17 @@ Pipeline::handleStateMsgPlay (gpointer data)
       // started time에 not supported도 보낸다. UI에서 play start msg 이후에 CB 받을 수 있다는 요청에 대응.
       if (_LMF_PLYR_BUS_CheckPendingNotSupportedAudioMessage (pPlayerHandle) ==
           false) {
-        std::
-            cout << "[BUS][CB]error send pending_not_support_message!!!" <<
+        std::cout << "[BUS][CB]error send pending_not_support_message!!!" <<
             endl;
       }
       if (_LMF_PLYR_BUS_CheckPendingAdditionalVideoMessage (pPlayerHandle) ==
           false) {
-        std::
-            cout << "[BUS][CB]error send PendingAdditionalVideoMessage!!!" <<
+        std::cout << "[BUS][CB]error send PendingAdditionalVideoMessage!!!" <<
             endl;
       }
 #endif
     } else {
-      std::
-          cout <<
+      std::cout <<
           "[BUS]LMF_PLAYBIN2_CheckPendingMultiTrackSetting already done!" <<
           endl;
     }
@@ -856,12 +840,12 @@ Pipeline::handleStateMsgPlay (gpointer data)
       //TODO LMF_PLYR_ApplyPendingSeek(pPlayerHandle->ch);
     } else {
       self->stateChanged (self->m_gstPipelineState);
-      std::cout << "[BUS][-> NOTI] stateChanged: " << self->
-          m_gstPipelineState << endl;
+      std::
+          cout << "[BUS][-> NOTI] stateChanged: " << self->m_gstPipelineState <<
+          endl;
     }
-    std::
-        cout << "[BUS][CB - GST_STATE_PLAYING]state changed - PlayingState  " <<
-        endl;
+    std::cout << "[BUS][CB - GST_STATE_PLAYING]state changed - PlayingState  "
+        << endl;
   } else {
     std::cout << "[BUS][CB - GST_STATE_PLAYING]state - PlayingState  " << endl;
   }
@@ -918,15 +902,15 @@ Pipeline::handleStateMsgPause (gpointer data, GstState oldState)
       }
     }
 
-    std::
-        cout << "[BUS][CB - GST_STATE_PAUSED] oldstate - GST_STATE_READY 2" <<
+    std::cout << "[BUS][CB - GST_STATE_PAUSED] oldstate - GST_STATE_READY 2" <<
         endl;
   }
 
   if (self->m_gstPipelineState != prevState) {
     self->stateChanged (self->m_gstPipelineState);
-    std::cout << "[BUS][-> NOTI] stateChanged: " << self->
-        m_gstPipelineState << endl;
+    std::
+        cout << "[BUS][-> NOTI] stateChanged: " << self->m_gstPipelineState <<
+        endl;
   }
   return;
 }
@@ -951,8 +935,7 @@ Pipeline::handleBusStateMsg (gpointer data, GstMessage * pMessage)
         gst_element_state_get_name (oldState),
         gst_element_state_get_name (newState));
 
-    std::
-        cout << "[BUS] Get STATE Changed message..." <<
+    std::cout << "[BUS] Get STATE Changed message..." <<
         gst_element_state_get_name (oldState) << " -> " <<
         gst_element_state_get_name (newState);
 
@@ -972,12 +955,10 @@ Pipeline::handleBusStateMsg (gpointer data, GstMessage * pMessage)
       if (self->m_gstPipelineState != StoppedState) {
         self->m_gstPipelineState = StoppedState;
         self->stateChanged (self->m_gstPipelineState);
-        std::
-            cout << "[BUS][CB GST_STATE_NULL]state changed - StoppedState " <<
+        std::cout << "[BUS][CB GST_STATE_NULL]state changed - StoppedState " <<
             endl;
       } else {
-        std::
-            cout << "[BUS][%s][%d][CB GST_STATE_NULL] state - StoppedState " <<
+        std::cout << "[BUS][%s][%d][CB GST_STATE_NULL] state - StoppedState " <<
             endl;
       }
 
@@ -993,12 +974,10 @@ Pipeline::handleBusStateMsg (gpointer data, GstMessage * pMessage)
       if (self->m_gstPipelineState != StoppedState) {
         self->m_gstPipelineState = StoppedState;
         self->stateChanged (self->m_gstPipelineState);
-        std::
-            cout << "[BUS][CB - GST_STATE_READY]state changed - StoppedState "
+        std::cout << "[BUS][CB - GST_STATE_READY]state changed - StoppedState "
             << endl;
       } else {
-        std::
-            cout << "[BUS][CB - GST_STATE_READY]state - StoppedState \n" <<
+        std::cout << "[BUS][CB - GST_STATE_READY]state - StoppedState \n" <<
             endl;
       }
       break;
@@ -1039,38 +1018,34 @@ Pipeline::handleBusEOS (gpointer data)
     {
       if (self->m_bAsfLive == true && self->m_duration > 0)     // local file ASF live play case.
       {
-        std::
-            cout <<
+        std::cout <<
             "[BUS EOS] send MEDIA_CB_MSG_PLAYEND at (ASF live + local file play case)."
             << endl;
         self->pipelineEventNotify (self, MEDIA_CB_MSG_PLAYEND);
         // asf demuxer 에서 file play 인 경우만 duration 제공. 이외는 0.
       } else if (self->m_isDLNA == true) {      // WMP(win8) DLNA DMC 재생 시, ASF live stream 으로 재생.
-        std::
-            cout <<
+        std::cout <<
             "[BUS EOS] send MEDIA_CB_MSG_PLAYEND at (ASF live + DLNA play case). "
             << endl;
         self->pipelineEventNotify (self, MEDIA_CB_MSG_PLAYEND);
       } else {                  /* live asf - protocol module에서 eos detect 시 재생 retry (requirement of ORANGE pl sport) */
-        std::
-            cout <<
+        std::cout <<
             "[BUS EOS] send MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN at (ASF live stream)."
             << endl;
         self->pipelineEventNotify (self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
       }
     }
   } else {
-    std::
-        cout << "[BUS EOS][%s:%d] EOS callback came so early. >>> pending EOS."
+    std::cout << "[BUS EOS][%s:%d] EOS callback came so early. >>> pending EOS."
         << endl;
     self->m_bPendingEOS = true;
   }
 }
 
-gboolean
-Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
+gboolean Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
 {
-  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  Pipeline *
+      self = reinterpret_cast < Pipeline * >(data);
 
   switch (GST_MESSAGE_TYPE (pMessage)) {
     case GST_MESSAGE_STATE_CHANGED:
@@ -1086,19 +1061,20 @@ Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
     }
     case GST_MESSAGE_ERROR:
     {
-      GError *pErr = NULL;
-      gchar *pDebug = NULL;
+      GError *
+          pErr = NULL;
+      gchar *
+          pDebug = NULL;
 
       gst_message_parse_error (pMessage, &pErr, &pDebug);
       if ((pErr->domain == GST_STREAM_ERROR)
           && (pErr->code == GST_STREAM_ERROR_CODEC_NOT_FOUND)) {
         self->pipelineEventNotify (self, MEDIA_CB_MSG_ERR_CODEC_NOT_SUPPORTED);
-        std::
-            cout << "[BUS][format error] Cannot play stream of type: <unknown>";
+        std::cout <<
+            "[BUS][format error] Cannot play stream of type: <unknown>";
       } else {
         self->pipelineEventNotify (self, MEDIA_CB_MSG_ERR_PLAYING);
-        std::
-            cout <<
+        std::cout <<
             "[BUS][resource error] Cannot play stream of type: <unknown>";
       }
 
@@ -1114,8 +1090,10 @@ Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
     }
     case GST_MESSAGE_WARNING:
     {
-      GError *pErr = NULL;
-      gchar *pDebug = NULL;
+      GError *
+          pErr = NULL;
+      gchar *
+          pDebug = NULL;
 
       gst_message_parse_warning (pMessage, &pErr, &pDebug);
       std::cout << "Warning:" << pErr->message;
@@ -1127,8 +1105,10 @@ Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
 #ifdef DEBUG_PLAYBIN
     case GST_MESSAGE_INFO:
     {
-      GError *err;
-      gchar *debug;
+      GError *
+          err;
+      gchar *
+          debug;
 
       gst_message_parse_info (pMessage, &err, &debug);
       std::cout << "Info:" << err->message;
@@ -1140,8 +1120,10 @@ Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
 #endif
     case GST_MESSAGE_SEGMENT_START:
     {
-      const GstStructure *pStructure = gst_message_get_structure (pMessage);
-      gint64 position =
+      const GstStructure *
+          pStructure = gst_message_get_structure (pMessage);
+      gint64
+          position =
           g_value_get_int64 (gst_structure_get_value (pStructure, "position"));
 
       self->m_currentPosition = position;
@@ -1164,7 +1146,8 @@ Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
     case GST_MESSAGE_UNKNOWN:  /* next */
     case GST_MESSAGE_BUFFERING:        /* next */
     {
-      int progress = 0;
+      int
+          progress = 0;
       gst_message_parse_buffering (pMessage, &progress);
       //TODO notify bufferingProgressChanged(progress);
     }
@@ -1188,7 +1171,7 @@ Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
 }
 
 gboolean
-Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
+    Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
 {
   Pipeline *self = reinterpret_cast < Pipeline * >(data);
 
@@ -1205,16 +1188,15 @@ Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
           GST_CORE_ERROR ? "GST_CORE_ERROR" : (pErr->domain ==
               GST_RESOURCE_ERROR ? "GST_RESOURCE_ERROR" : (pErr->domain ==
                   GST_LIBRARY_ERROR ? "GST_LIBRARY_ERROR" : "UNKNOWN"))))
-      << " - " << pErr->
-      code << " " << (GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage))) << " " <<
-      pErr->message << " " << pDebug << endl;
+      << " - " << pErr->code << " " <<
+      (GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage))) << " " << pErr->
+      message << " " << pDebug << endl;
 
   /* error 중 무시되어야 하는 경우는 여기에 삽입 */
   if ((strncmp (GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage)), "queue2",
               strlen ("queue2")) == 0) && (pErr->domain == GST_STREAM_ERROR)
       && (pErr->code == GST_STREAM_ERROR_FAILED)
-      && (strstr (pDebug,
-              "streaming task paused, reason error (-5)") != NULL)) {
+      && (strstr (pDebug, "streaming task paused, reason error (-5)") != NULL)) {
     std::cout << "[BUS][%s:%d] error from gstqueue2, ignored!!!";
   } else if (((strstr (GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage)), "aacdec") != 0) || //MTK: omxaacdec0
           (strstr (GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage)), "adec") != 0)) &&      //L9: adecsink0
@@ -1227,8 +1209,8 @@ Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
   } else if ((strncmp (GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage)), "source",
               strlen ("source")) == 0) && (self->m_bNeedToRestart == true)) {
     /* live asf - protocol module want to play againg at error detect case (requirement of ORANGE pl sport) */
-    std::
-        cout << "[BUS][%s:%d] error from soup http (asf live) -> play again!!!";
+    std::cout <<
+        "[BUS][%s:%d] error from soup http (asf live) -> play again!!!";
     self->pipelineEventNotify (self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
   } else if ((strncmp (GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage)), "source",
               strlen ("source")) == 0)
@@ -1237,11 +1219,9 @@ Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
       && (pErr->domain == GST_STREAM_ERROR)
       && (pErr->code == GST_STREAM_ERROR_WRONG_TYPE)) {
     // http url to mms url redirection CASE.
-    std::
-        cout << "[BUS]....... " <<
+    std::cout << "[BUS]....... " <<
         g_type_name (G_OBJECT_TYPE (GST_MESSAGE_SRC (pMessage)));
-    std::
-        cout << "[BUS]....... " <<
+    std::cout << "[BUS]....... " <<
         G_OBJECT_TYPE_NAME (GST_MESSAGE_SRC (pMessage));
 
     //[message to upper layer]FormatError  "Cannot play stream of type: <unknown>"
@@ -1279,10 +1259,10 @@ Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
   return true;
 }
 
-gint64
-Pipeline::getStreamLength (gpointer data)
+gint64 Pipeline::getStreamLength (gpointer data)
 {
-  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  Pipeline *
+      self = reinterpret_cast < Pipeline * >(data);
 
   if (self == NULL || self->m_pipeHandle == NULL) {
     std::cout << "[BUS][%s:%d] Error. Player Handle is NULL!!!" << endl;
@@ -1292,8 +1272,10 @@ Pipeline::getStreamLength (gpointer data)
   std::cout << "[BUS][%s] try to get duration." << endl;
 
   if (self->m_duration == 0) {
-    GstFormat queryFormat = GST_FORMAT_TIME;
-    gint64 len = -1;
+    GstFormat
+        queryFormat = GST_FORMAT_TIME;
+    gint64
+        len = -1;
 #if (GST_VERSION_MAJOR >= 1)
     if (gst_element_query_duration (self->m_pipeHandle, queryFormat, &len)
         && (len != -1))
@@ -1308,8 +1290,7 @@ Pipeline::getStreamLength (gpointer data)
       std::cout << "[BUS][%s] try to get duration - fail. ";
     }
   } else {
-    std::
-        cout <<
+    std::cout <<
         "[BUS][%s] try to get duration - element NULL or streamLength get already done. ";
   }
 
@@ -1326,8 +1307,7 @@ Pipeline::handleBusDuration (gpointer data, GstMessage * pMessage)
 
   // query 값은 0 이면서 따로 GST_MESSAGE_DURATION 올려주는 경우의 처리 들어감.
   if (getStreamLength (self) >= 0) {
-    std::
-        cout <<
+    std::cout <<
         "[BUS] update duration at GST_MESSAGE_DURATION [_gSessionDuration:" <<
         (gint64) self->m_duration << endl;
   } else {
@@ -1338,8 +1318,7 @@ Pipeline::handleBusDuration (gpointer data, GstMessage * pMessage)
   if ((duration >= 0) && (fmt == GST_FORMAT_BYTES)) {
     // Sometimes GST_MESSAGE_DURATION comes twice, once with -1; (http, mp3 play)
     //DBG_PRINT("[BUS] filesize: %"G_GINT64_FORMAT" (%s)\n", duration, gst_format_get_name(fmt));
-    std::
-        cout << "[BUS] filesize:" << duration << "G_GINT64_FORMAT:" <<
+    std::cout << "[BUS] filesize:" << duration << "G_GINT64_FORMAT:" <<
         gst_format_get_name (fmt) << endl;
     self->m_source_dataSize = (guint64) duration;
   }
@@ -1369,8 +1348,9 @@ Pipeline::handleBusApplication (gpointer data, GstMessage * pMessage)
       self->m_bSeekableDuration = false;
     }
 
-    std::cout << "[BUS][GST_MESSAGE_APPLICATION] - is live of ASF:" << ((self->
-            m_bNeedToRestart == true) ? "OO" : "XX") << endl;
+    std::
+        cout << "[BUS][GST_MESSAGE_APPLICATION] - is live of ASF:" <<
+        ((self->m_bNeedToRestart == true) ? "OO" : "XX") << endl;
   } else if (gst_structure_has_name (pStructure, "GstMessageSeekable")) {
     gboolean bIsSeekable = true;
 
@@ -1378,8 +1358,7 @@ Pipeline::handleBusApplication (gpointer data, GstMessage * pMessage)
         g_value_get_boolean (gst_structure_get_value (pStructure, "SEEKABLE"));
     self->m_bSeekableIndex = bIsSeekable;
 
-    std::
-        cout << "[BUS][GST_MESSAGE_APPLICATION] - seekable: " << ((bIsSeekable
+    std::cout << "[BUS][GST_MESSAGE_APPLICATION] - seekable: " << ((bIsSeekable
             == true) ? "OO" : "XX") << endl;
   } else if (gst_structure_has_name (pStructure, "GstMessageAudio"))    // demuxer가 invalid audio 로 판단
   {
@@ -1388,8 +1367,7 @@ Pipeline::handleBusApplication (gpointer data, GstMessage * pMessage)
     bValidAudio =
         g_value_get_boolean (gst_structure_get_value (pStructure, "AUDIO"));
 
-    std::
-        cout << "[BUS][GST_MESSAGE_APPLICATION] - bValiadAudio:" <<
+    std::cout << "[BUS][GST_MESSAGE_APPLICATION] - bValiadAudio:" <<
         ((bValidAudio == true) ? "OO" : "XX") << endl;
     // NULL to READY 에 올라온다. recv at demuxer probing time.
     if (bValidAudio == false)
@@ -1404,8 +1382,7 @@ Pipeline::handleBusApplication (gpointer data, GstMessage * pMessage)
     {
       bValidVideo = g_value_get_boolean (pValidVideo);
 
-      std::
-          cout << "[BUS][GST_MESSAGE_APPLICATION] - bValidVideo:" <<
+      std::cout << "[BUS][GST_MESSAGE_APPLICATION] - bValidVideo:" <<
           ((bValidVideo == true) ? "OO" : "XX") << endl;
       if (bValidVideo == false)
         self->m_bPendingNotSupportedVideoMessage = true;        // save. msg.
@@ -1414,13 +1391,12 @@ Pipeline::handleBusApplication (gpointer data, GstMessage * pMessage)
 }
 
 gboolean
-Pipeline::gstBusCallbackHandle (GstBus * pBus, GstMessage * pMessage,
+    Pipeline::gstBusCallbackHandle (GstBus * pBus, GstMessage * pMessage,
     gpointer data)
 {
   Pipeline *self = reinterpret_cast < Pipeline * >(data);
   //TODO: change PERI LOG print.
-  std::
-      cout << "Pipeline] bus callback msg - element:" <<
+  std::cout << "Pipeline] bus callback msg - element:" <<
       GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage)) << " | name:" <<
       gst_message_type_get_name (GST_MESSAGE_TYPE (pMessage)) << endl;
 
@@ -1449,8 +1425,7 @@ Pipeline::gstBusCallbackHandle (GstBus * pBus, GstMessage * pMessage,
 /*
 * signal connect for gstreamer bus callback.
 */
-bool
-Pipeline::connectGstBusCallback ()
+bool Pipeline::connectGstBusCallback ()
 {
   if (m_pipeHandle == NULL) {
     std::cout << " Error. Gstreamer Player Handle is NULL!!!" << endl;
@@ -1493,12 +1468,12 @@ Pipeline::setSeekable (gpointer data, bool seekable)
   }
 }
 
-gfloat
-Pipeline::playbackRate () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
-  return m_playbackRate;
-}
+     gfloat Pipeline::playbackRate () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+       return
+           m_playbackRate;
+     }
 
 gboolean
 Pipeline::setPlaybackRate (gfloat rate)
@@ -1506,10 +1481,10 @@ Pipeline::setPlaybackRate (gfloat rate)
   return setPlaybackRate (this, rate);
 }
 
-gboolean
-Pipeline::setPlaybackRate (gpointer data, gfloat rate)
+gboolean Pipeline::setPlaybackRate (gpointer data, gfloat rate)
 {
-  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  Pipeline *
+      self = reinterpret_cast < Pipeline * >(data);
 
   if (!self->compareDouble (self->m_playbackRate, rate)) {
     self->m_playbackRate = rate;
@@ -1524,10 +1499,10 @@ Pipeline::setPlaybackRate (gpointer data, gfloat rate)
   return true;
 }
 
-bool
-Pipeline::compareDouble (const double num1, const double num2)
+bool Pipeline::compareDouble (const double num1, const double num2)
 {
-  const double precision = 0.00001;
+  const double
+      precision = 0.00001;
 
   if (((num1 - precision) < num2) && ((num1 + precision) > num2))
     return true;

@@ -27,13 +27,13 @@ GenericPipeline::GenericPipeline ()
 
 }
 
-gboolean
-GenericPipeline::initSpi_pre ()
+gboolean GenericPipeline::initSpi_pre ()
 {
   m_pipeHandle = gst_element_factory_make ("playbin2", NULL);
   if (m_pipeHandle) {
     m_playbinVersion = 2;       //playbin2
-    int flags = 0;
+    int
+        flags = 0;
     //GST_PLAY_FLAG_NATIVE_VIDEO omits configuration of ffmpegcolorspace and videoscale
     g_object_get (G_OBJECT (m_pipeHandle), "flags", &flags, NULL);
     flags |= GST_PLAY_FLAG_NATIVE_VIDEO;
@@ -52,8 +52,7 @@ GenericPipeline::initSpi_pre ()
   }
 }
 
-gboolean
-GenericPipeline::initSpi_post ()
+gboolean GenericPipeline::initSpi_post ()
 {
   // connect source notify. 
   g_signal_connect (G_OBJECT (m_pipeHandle), "notify::source",
@@ -65,11 +64,11 @@ GenericPipeline::~GenericPipeline ()
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
 }
 
-bool
-GenericPipeline::loadFromURI ()
+bool GenericPipeline::loadFromURI ()
 {
   if (m_pipeHandle) {
-    GstBus *pBus = NULL;
+    GstBus *
+        pBus = NULL;
     // message를 막기 위해 flushing 한다.
     pBus = gst_element_get_bus (m_pipeHandle);
     gst_bus_set_flushing (pBus, true);
@@ -86,13 +85,15 @@ GenericPipeline::loadFromURI ()
   return true;
 }
 
-bool
-GenericPipeline::handleURI (MEDIA_CLIPOPT_T * clipOpt)
+bool GenericPipeline::handleURI (MEDIA_CLIPOPT_T * clipOpt)
 {
   if (m_pipeHandle) {
-    GFile *pTmpFile = NULL;
-    char *pNewUri = NULL;
-    char *pTmpPath = NULL;
+    GFile *
+        pTmpFile = NULL;
+    char *
+        pNewUri = NULL;
+    char *
+        pTmpPath = NULL;
 
     if (!strncmp (clipOpt->mediafile, "mms://", strlen ("mms://"))) {
       // fix for maxdome FF issue. (set serverside tirck enable at mms streamming.)
@@ -131,8 +132,7 @@ GenericPipeline::handleURI (MEDIA_CLIPOPT_T * clipOpt)
   return true;
 }
 
-bool
-GenericPipeline::setExtraElementOption (MEDIA_CLIPOPT_T * clipOpt)
+bool GenericPipeline::setExtraElementOption (MEDIA_CLIPOPT_T * clipOpt)
 {
   if (m_pipeHandle) {
 #if 0                           //TODO: 구현..
@@ -164,8 +164,7 @@ GenericPipeline::setExtraElementOption (MEDIA_CLIPOPT_T * clipOpt)
   return true;
 }
 
-gboolean
-GenericPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
+gboolean GenericPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
   // setting values
@@ -194,7 +193,7 @@ GenericPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
 
 
 gboolean
-GenericPipeline::load (MEDIA_STREAMOPT_T * streamOpt,
+    GenericPipeline::load (MEDIA_STREAMOPT_T * streamOpt,
     MEDIA_FORMAT_T mediaFormatType)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
@@ -203,8 +202,7 @@ GenericPipeline::load (MEDIA_STREAMOPT_T * streamOpt,
 }
 
 /* for prebuffering action */
-gboolean
-GenericPipeline::isReadyToPlaySpi ()
+gboolean GenericPipeline::isReadyToPlaySpi ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
 
@@ -239,25 +237,28 @@ gboolean::isReadyToPlaySpi ()
 
 
 //Error GenericPipeline::error() const;
-GString
-GenericPipeline::errorString () const const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+     GString GenericPipeline::errorString () const
+     {
+       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
 
-}
+     }
 
-void
-GenericPipeline::playbinNotifySource (GObject * pObject, GParamSpec * pParam,
-    gpointer u_data)
+     void
+     GenericPipeline::playbinNotifySource (GObject * pObject,
+    GParamSpec * pParam, gpointer u_data)
 {
-  GenericPipeline *genericPipeline =
-      reinterpret_cast < GenericPipeline * >(u_data);
+  GenericPipeline *
+      genericPipeline = reinterpret_cast < GenericPipeline * >(u_data);
 
   if (g_object_class_find_property (G_OBJECT_GET_CLASS (pObject), "source")) {
-    GObject *pSrcElement = NULL;
-    GstBaseSrc *pBaseSrc = NULL;
-    GstElementFactory *pFactory = NULL;
-    const gchar *pName = NULL;
+    GObject *
+        pSrcElement = NULL;
+    GstBaseSrc *
+        pBaseSrc = NULL;
+    GstElementFactory *
+        pFactory = NULL;
+    const gchar *
+        pName = NULL;
 
     // get source element
     g_object_get (pObject, "source", &pSrcElement, NULL);
@@ -311,11 +312,11 @@ GenericPipeline::playbinNotifySource (GObject * pObject, GParamSpec * pParam,
 /*
 * set gstreamer debug LOG level.
 */
-bool
-GenericPipeline::setGstreamerDebugLevel (guint select, gchar * category,
+bool GenericPipeline::setGstreamerDebugLevel (guint select, gchar * category,
     GstDebugLevel level)
 {
-  GError *err;
+  GError *
+      err;
   if (!gst_init_check (NULL, NULL, &err)) {
     std::cout << "Error:" << err->message << endl;
     g_error_free (err);

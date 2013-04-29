@@ -50,8 +50,7 @@ std::string Options::getString (const std::string key)
   return this->pt.get < std::string > (key);
 }
 
-bool
-Options::getBoolean (const std::string key)
+bool Options::getBoolean (const std::string key)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Options");
   return this->pt.get < bool > (key);
