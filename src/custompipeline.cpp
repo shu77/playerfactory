@@ -115,6 +115,68 @@ bool CustomPipeline::play (int rate)
   return true;
 }
 
+gboolean CustomPipeline::positionSpi(gpointer data, gint64 *pos)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  gint64 position = 0;
+  char *pPlayerName = gst_element_get_name(self->m_pipeHandle);
+
+  if((pPlayerName != NULL) && (!strcmp("static-player", pPlayerName)))
+  {
+    /*
+    * we found 4-second block issue when we play HLS content.
+    * MTK said he put wait mechanism for Netlfix certification when we get current pts
+    * so, below code is changed to  [if(lph->SessionState != PlayingState)] from [if(lph->SessionState == PausedState)]
+    * for resolving 4-second block issue.
+    */
+
+    if (self->m_gstPipelineState != PlayingState)
+    {
+      //TODO pos = self->m_SessionPlayPositionStatic;
+    }
+    else
+    {
+      //TODO if (_STATIC_GetPlayInfo(pPlayerHandle->ch, &pos) != LMF_OK)
+      {
+        pos = 0;
+      }
+      //TODO self->m_SessionPlayPositionStatic = pos;
+    }
+  }
+  else
+  {
+    GstFormat queryFormat = GST_FORMAT_TIME;
+#if (GST_VERSION_MAJOR >= 1)
+    if(!gst_element_query_position(self->m_pipeHandle, queryFormat, &position))
+#else
+    if(!gst_element_query_position(self->m_pipeHandle, &queryFormat, &position))
+#endif
+    position = 0;
+  }
+  if (pPlayerName != NULL)
+  g_free(pPlayerName);
+
+  *pos = position;
+  return true;
+}
+
+gboolean CustomPipeline::informationMonitorStartSpi(guint32 timeInterval)
+{
+  if ((m_pipeHandle == NULL) || (GST_IS_ELEMENT(m_pipeHandle) == FALSE))
+  {
+    std::cout << "Error. Gstreamer Player Handle is NULL!!!  " << endl;
+    return false;
+  }
+
+  //TODO if(_STATIC_COMM_bNeedCheckState(pPlayerHandle->ch))
+  {
+    //g_print("[%s] Buffering Timer Start!(Interval: 200ms) - update buffering info.\n", __FUNCTION__);
+    //m_bufferingTimerId = g_timeout_add(200, (GSourceFunc)updateBufferingInfo, this);
+  }
+  return true;
+}
+
 MEDIA_STATUS_T
 CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
                       const gchar * pSrcPath,

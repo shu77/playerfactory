@@ -30,6 +30,10 @@ using namespace std;
 
 #define MAX(a, b)  (((a) > (b)) ? (a) : (b))
 #define MEDIAPIPE_BUFFER_SIZE (24*1024*1024)
+#define DURATION_QUERY_MAX_NUM 20 //200ms x 20 =  4s
+#define BITS_PER_BYTE 8
+#define SOUP_HTTP_SRC_TIMEOUT 30 
+
 #define LMF_TO_LOWER(src)           \
   do{                   \
         for(int i = 0; i < strlen(src); i++)  \
@@ -140,28 +144,16 @@ public:
   virtual gboolean loadSpi_pre () = 0;
   gboolean load (const std::string optionString);
   virtual gboolean loadSpi_post () = 0;
-
-  /*virtual */
   gboolean unload ();
-  // = 0;
-  /*virtual */
   gboolean play (int rate = 1);
-  // = 0;
-  /*virtual */
   gboolean pause ();
-  // = 0;
-  /*virtual */
   gboolean stop ();
-  // = 0;
-  /*virtual */
   gboolean seek (gint64 ms);
-  // = 0;
-  //virtual gboolean setPlaybackRate(gfloat rate) = 0;
   gboolean isReadyToPlay ();
   Pipeline::State getPendingPipelineState ();
   virtual gboolean isReadyToPlaySpi () = 0;
 
-//handle buscallback
+  //handle buscallback
   bool compareDouble (const double num1, const double num2);
   bool connectGstBusCallback ();
   void checkSupported (gpointer data);
@@ -182,63 +174,49 @@ public:
   static void handleMutedChange (GObject * o, GParamSpec * p, gpointer d);
   static gboolean gstBusCallbackHandle (GstBus * pBus, GstMessage * pMessage,
                                         gpointer data);
+  //end buscallback
 
-//end buscallback
-
-//set seek,trick
+  //set seek,trick
   void setSeekable (gpointer data, bool seekable);
   void setSeekable (bool seekable);
   gfloat playbackRate () const;
   gboolean setPlaybackRate (gfloat rate);
   gboolean setPlaybackRate (gpointer data, gfloat rate);
-//end seek,trick
+  //end seek,trick
 
-  /*
-     virtual void feed(unsigned char * data);
-     virtual void stop();
-     virtual void seek();
-     virtual void pause();
-     virtual void setProperty();
-     virtual void getProperty();
-   */
-  //virtual void setSeekable(bool seekable) = 0;
-  /*virtual */
-  gint64 duration () const;
-  // = 0;
-  /*virtual */
-  gint64 position () const;
-  // = 0;
-  /*virtual */
+  gint64 duration (gpointer data);
+  gint64 duration ();
+  gint64 position (gpointer data, gboolean bReadAgain);
+  gint64 position (gboolean bReadAgain);
+
+  virtual gboolean positionSpi(gpointer data, gint64 *pos) = 0;
+
   gint volume () const;
-  // = 0;
-  /*virtual */
   gboolean isMuted () const;
-  // = 0;
-  /*virtual */
   gboolean isAudioAvailable () const;
-  // = 0;
-  /*virtual */
   gboolean isVideoAvailable () const;
-  // = 0;
-  /*virtual */
   gboolean isSeekable ();
-  // = 0;
-  /*virtual */
   gboolean isSeekable (gpointer data);
-  // = 0;
-  //virtual gfloat playbackRate() const = 0;
 
   /* notify state change */
   void pipelineEventNotify (gpointer data, MEDIA_CB_MSG_T msg);
   void stateChanged (Pipeline::State state);
   void seekableStateChanged (bool seekable);
   void playbackRateChanged (gfloat rate);
-  //virtual Error error() const;
   virtual GString errorString () const = 0;
   enum Error gstError;
-  //enum MediaStatus MediaStatus;
   virtual bool setGstreamerDebugLevel (guint select, gchar * category,
                                        GstDebugLevel level) = 0;
+  /* start update information APIs */
+  static gboolean updatePlayPosition(gpointer data);
+  gboolean informationMonitorStart(guint32 timeInterval);
+  virtual gboolean informationMonitorStartSpi(guint32 timeInterval) = 0;
+  static gboolean updateDuration(gpointer data);
+  static gboolean updateBufferingInfo(gpointer data);
+  gboolean updateBufferingInfoSub(gpointer data, GstMessage *pMessage, gint *pPercent);
+
+  
+  /* start update information APIs */
 
   std::string m_uri;
   std::string m_subtitle_uri;
@@ -251,8 +229,8 @@ public:
   //guint       m_tag; /* temp handle for bus  */
   GstElement *m_pipeHandle;   /* gstreamer pipeline handler */
   gint m_playbinVersion;      /* playbin version 1/2/3 */
-  gboolean m_audioAvailable;  /* audio track available */
-  gboolean m_videoAvailable;  /* video track available */
+  gboolean m_bAudioAvailable;  /* audio track available */
+  gboolean m_bVideoAvailable;  /* video track available */
   gfloat m_playbackRate;      /* playback rate value */
   gint m_volume;              /* for gstreamer local volume support */
   gboolean m_muted;

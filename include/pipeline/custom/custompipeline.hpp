@@ -152,6 +152,8 @@ public:
                        guint64 startOffset, MEDIA_CUSTOM_CONTENT_INFO_T * pstContentInfo);
   void unload ();
   bool play (int rate);
+  gboolean informationMonitorStartSpi(guint32 timeInterval);
+  gboolean positionSpi(gpointer data, gint64 *pos);
 
   MEDIA_STATUS_T FeedStream (guint8 * pBuffer, guint32 bufferSize,
                              guint64 pts, MEDIA_DATA_CHANNEL_T esData);

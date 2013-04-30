@@ -26,8 +26,8 @@ Pipeline::Pipeline ()
   m_pendingState = StoppedState;
   m_busHandler = NULL;
   m_playbinVersion = -1;
-  m_audioAvailable = false;
-  m_videoAvailable = false;
+  m_bAudioAvailable = false;
+  m_bVideoAvailable = false;
   m_playbackRate = 1.0;
   m_volume = 100;
   m_muted = false;
@@ -306,30 +306,62 @@ Pipeline::State Pipeline::getPendingPipelineState ()
 
 
 //------------------------------------------ start get/set basic play information //
-gint64 Pipeline::duration () const
+gint64 Pipeline::duration ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
-  return
-    m_duration;
+  return this->duration(this);
 }
 
 gint64
-Pipeline::position () const
+Pipeline::position (gboolean bReadAgain)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
-  GstFormat format = GST_FORMAT_TIME;
-  gint64 position = 0;
-#if (GST_VERSION_MAJOR >= 1)
-  if (m_pipeHandle
-      && gst_element_query_position (m_pipeHandle, format, &position))
-#else
-  if (m_pipeHandle
-      && gst_element_query_position (m_pipeHandle, &format, &position))
-#endif
-    m_currentPosition = position / 1000000;
-
-  return m_currentPosition;
+  return this->position (this, bReadAgain);
 }
+
+gint64 Pipeline::duration (gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return self->m_duration;
+}
+
+gint64 Pipeline::position (gpointer data, gboolean bReadAgain)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. pipeline Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return 0;
+  }
+
+  if ((self->m_pipeHandle== NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == FALSE))
+  {
+    g_print("[%s:%d] Error. Gstreamer element Handle is NULL!!! \n", __FUNCTION__, __LINE__);
+    return 0;
+  }
+
+  if (self->m_bPlaybackStopped) // 20120118
+  {
+    g_print("[%s:%d] Error. the player is stopped (bPlaybackStopped)!!! \n", __FUNCTION__, __LINE__);
+    return 0;
+  }
+  
+  gint64 position = 0;
+
+  if (bReadAgain == TRUE)
+  {
+    if(self->positionSpi(self, &position) == false) /* get from each pipeline */
+      position = 0;
+  }
+  else
+    position = self->m_currentPosition;
+  
+  return position;
+}
+
 
 gint
 Pipeline::volume () const
@@ -349,14 +381,14 @@ gboolean
 Pipeline::isAudioAvailable () const
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
-
+  return m_bAudioAvailable;
 }
 
 gboolean
 Pipeline::isVideoAvailable () const
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
-
+  return m_bVideoAvailable;
 }
 
 //------------------------------------------ end get/set basic play information //
@@ -1545,7 +1577,448 @@ bool Pipeline::compareDouble (const double num1, const double num2)
 
 // end seek, trick.
 
+// start update information APIs
+gboolean Pipeline::updatePlayPosition(gpointer data){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  GstFormat queryFormat = GST_FORMAT_TIME;
+  gint64 pos = 0;
 
+  if (self == NULL)
+  {
+    std::cout <<"[TIMER] Error. pipeline Handle is NULL!!!  " << endl;
+    return FALSE;
+  }
+
+  if (self->m_bPlaybackStopped)
+  {
+    std::cout<<"[TIMER] _gbPlaybackStopped END timer " << endl;
+    return FALSE; // stop timer.
+  }
+#if 0 //TODO..
+  if (self->m_bEndOfFile && PLAYBIN2_IsUsing())
+  {
+    LMF_PERI_PRINT("[TIMER][%s] bEndOfFile!\n", __FUNCTION__);
+    //TODO API_LMF_EVENT_Notify(self, MEDIA_CB_MSG_PLAYEND);
+    return TRUE;
+  }
+#endif
+  if (self->m_gstPipelineState == StoppedState) // when seeking, skip getting position.
+  {
+    self->m_currentPosition= 0;
+    return TRUE; // continue timer.
+  }
+  else if (self->m_gstPipelineState == PausedState)
+  {
+    std::cout <<"[TIMER] pause status,,, skip update position " << endl;
+    return TRUE; // continue timer.
+  }
+
+  if ((self->m_pipeHandle== NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == FALSE))
+  {
+    return FALSE;
+  }
+
+  //PERI_PRINT("[TIMER] self->m_pipeHandle = %p  \n", __FUNCTION__, __LINE__, self->m_pipeHandle);
+#if (GST_VERSION_MAJOR >= 1)
+  if (gst_element_query_position(self->m_pipeHandle, queryFormat, &pos))
+#else
+  if (gst_element_query_position(self->m_pipeHandle, &queryFormat, &pos))
+#endif
+  {
+
+    g_print("[TIMER][%s] Time: %" GST_TIME_FORMAT " / %" GST_TIME_FORMAT "\r\n", __FUNCTION__, GST_TIME_ARGS (self->m_currentPosition), GST_TIME_ARGS (self->m_duration));
+    // seeking 중에는 position update skip. flush등 하면서 간혹 position query값이 튄다.
+    // 단, audio only는 seek가 async에 해당되지 않아 조건에서 제외.
+    if(self->m_bIsSeeking == TRUE && (self->m_bVideoAvailable == TRUE))
+    {
+      std::cout <<"now seeking.. skip update SessionPlayPosition  " << endl;
+    }
+    else
+      self->m_currentPosition = pos;
+
+  }
+  else
+  {
+    return TRUE;
+  }
+  return TRUE;  // update periodically
+}
+
+gboolean Pipeline::updateDuration(gpointer data){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  GstFormat queryFormat = GST_FORMAT_TIME;
+  gint64 pos = 0;
+
+  if ((self == NULL) ||
+  (self->m_pipeHandle == NULL)||
+  (GST_IS_ELEMENT(self->m_pipeHandle) == FALSE) ||
+  (self->m_bPlaybackStopped))
+  {
+    if (self->m_pipeHandle == NULL)
+    {
+      g_print("[TIMER][%s:%d] ERROR : PlayerHandle : NULL \n ", __FUNCTION__, __LINE__);
+    }
+    else
+    {
+      g_print("[TIMER][%s:%d] ERROR : bPlaybackStopped : %s\n ",
+      __FUNCTION__, __LINE__,
+      (self->m_bPlaybackStopped)?"Stop":"OOOO");
+    }
+    return FALSE; // stop timer.
+  }
+
+  if (self->m_gstPipelineState == StoppedState)
+  {
+    g_print("[TIMER][%s][StoppedState] duration query skipped... \n ", __FUNCTION__);
+    return TRUE; // contunue timer
+  }
+#if (GST_VERSION_MAJOR >= 1)
+  if (gst_element_query_duration(self->m_pipeHandle, queryFormat, &pos))
+#else
+  if (gst_element_query_duration(self->m_pipeHandle, &queryFormat, &pos))
+#endif
+  {
+    g_print("[TIMER][%s:%d] self->m_pipeHandl = %p  \n", __FUNCTION__, __LINE__, self->m_pipeHandle);
+    g_print("[TIMER][%s][dur=%"G_GINT64_FORMAT"] \n ", __FUNCTION__, pos);
+
+    if (self->m_duration > 0)
+    {
+      g_print("[TIMER][%s] get value already done  [m_duration=%"G_GINT64_FORMAT"] \n ", __FUNCTION__, self->m_duration);
+    }
+    else
+    {
+      self->m_duration = pos;
+    }
+
+    g_print("[TIMER][%s][m_duration=%"G_GINT64_FORMAT"] \n ", __FUNCTION__, self->m_duration);
+
+    /* >>> self->m_duration 구함. */
+    if (self->m_duration > 0) // (query 또는 msg 로) duration 값이 정상적으로 올라오는 경우
+    {
+      self->m_source_durationMS = (self->m_duration / GST_MSECOND);
+      self->m_source_bIsValidDuration = TRUE;
+#if 0 //TODO for ASF local file playback. seekable exception.
+      if((self-> == LMF_MEDIA_SRC_TYPE_FILE) && (self->m_bAsfLive))
+      {
+        g_print("[TIMER] USB + live stream is not seekable!!!  but duration is valid!!! \n ", __FUNCTION__);
+        self->m_bSeekableDuration = FALSE;
+      }
+      else
+#endif
+      {
+        self->m_bSeekableDuration = TRUE;
+      }
+    }
+    else if ((self->m_duration == 0) || (self->m_duration == -1))
+    {
+      g_print("\n[TIMER][%s:%d] _gSessionDuration(%"G_GINT64_FORMAT") case -> Live Streaming!!!!\n\n",
+      __FUNCTION__, __LINE__, self->m_duration);
+
+      self->m_bLiveStreaming = TRUE;
+      self->m_source_bIsValidDuration = FALSE;
+
+      if (self->m_duration== 0)  //query 성공했으나 dur == 0 으로 올라오는 경우
+      {
+        //TODO if (_updateDurationPlanB(self) == LMF_OK)
+        //  return FALSE;
+      }
+    }
+
+    /* >>> pPlayerHandle->sourceInfo 에 값 세팅 */
+    if ((self->m_duration > 0) && (self->m_source_dataSize > 0)) // 평균 bitrate
+    {
+      //TODO _UpdateBitrateInfo(self);
+    }
+
+    /* >>> pPlayerHandle->sourceInfo.targetBitrateBps 에 값 세팅 */
+    if (self->m_duration > 0)
+    {
+      //EmitDurationLogToBSI(self->m_duration / GST_MSECOND, FALSE);
+      return FALSE;
+    }
+    else
+      return TRUE;
+  }
+  else
+  {
+    g_print("[TIMER]DURATION: failed.\n");
+
+    if ((self->m_gstPipelineState == PausedState) || (self->m_gstPipelineState == PlayingState))
+    {
+      self->m_durationQueryCount ++;
+      if (self->m_durationQueryCount > DURATION_QUERY_MAX_NUM)
+      {
+        g_print("[TIMER][%s:%d] duration query failed %d times -> Live Streaming!!!!\n\n",
+        __FUNCTION__, __LINE__, self->m_durationQueryCount);
+        self->m_bLiveStreaming = TRUE;
+        self->m_source_bIsValidDuration = FALSE;
+
+        //TODO UpdateDurationPlanB(pPlayerHandle);
+        return FALSE;  // stop querying.
+      }
+      else
+      {
+        g_print("[TIMER][%s:%d] duration query failed %d times \n\n",
+        __FUNCTION__, __LINE__, self->m_durationQueryCount);
+      }
+    }
+    return TRUE; // continue timer //
+  }
+  return FALSE; 	// update once
+}
+
+gboolean Pipeline::updateBufferingInfoSub(gpointer data, GstMessage *pMessage, gint *pPercent){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  
+  GstQuery *pQuery = NULL;
+  GstBufferingMode bufferingMode = GST_BUFFERING_STREAM;
+  GstFormat reqFormat = GST_FORMAT_BYTES;
+
+  gint bufferedPercent = 0;
+  gint64 bufferedTotal = 0;
+  gint64 bufferedSize = 0;
+  guint64 vdecBufferedSize = 0;
+  guint64 adecBufferedSize = 0;
+  gint64 correctionSize = 0;
+
+  gint inPercent	= 0; // fix 20110921
+  gint avgIn 		= 0;
+  gint avgOut 	= 0;
+  gint bitrate	= 0;
+  gint durSec		= 0;
+  gint decodedSec	= 0;
+  gint remainSec 	= 0;
+  gint endSec 	= 0;
+
+  if ((self == NULL) || (self->m_pipeHandle== NULL))
+  {
+    g_print("[TIMER][%s:%d] handle is NULL!!!!!!\n", __FUNCTION__, __LINE__);
+    return FALSE;
+  }
+  bitrate 		= self->m_AvgBitrate;
+  correctionSize 	= self->m_bufferedBytesCorrection;
+  if (pMessage == NULL)
+  {
+    pQuery = gst_query_new_buffering(GST_FORMAT_BYTES);
+    if (gst_element_query(self->m_pipeHandle, pQuery) == FALSE)
+    {
+      // try next time
+      gst_query_unref(pQuery);
+      g_print("[TIMER][%s:%d] gst_element_query failed!\n", __FUNCTION__, __LINE__);
+
+      /* if query is failed because it's live streaming: */
+      if (self->m_bLiveStreaming)
+      {
+      	g_print("[TIMER][%s:%d] Live Streaming Case (query failed)\n", __FUNCTION__, __LINE__);
+
+      	//TODO _UpdateAsLive(pPlayerHandle, pPercent);
+      	self->m_source_bIsValidDuration = FALSE;
+      	return TRUE;
+      }
+      return TRUE;
+    }
+    // query 성공
+    gst_query_parse_buffering_stats(pQuery, &bufferingMode, &avgIn, &avgOut, NULL);
+    gst_query_parse_buffering_range(pQuery, &reqFormat, NULL, &bufferedSize, NULL);
+    gst_query_unref(pQuery);
+  }
+
+  /* InstantBps */
+  if (avgIn > 0)
+    self->m_InstantBps = (gint64)(avgIn * BITS_PER_BYTE);
+
+  // 1. live streaming : live streaming 에 buffering 적용
+  if (self->m_bAsfLive) //asf live 인 경우 max bitrate 가 알려져 있으므로 buffering 정보 계산 가능함.
+  {
+    bitrate = self->m_MaxBitrate;
+    g_print("******* [TIMER][ASF Live] bitrate = %u, %d\n", self->m_MaxBitrate, bitrate);
+  }
+
+  if ((!self->m_bAsfLive && self->m_bLiveStreaming) ||
+  (self->m_bAsfLive && bitrate == 0)) // asf live 인데 bitrate 정보가 잘못된 경우
+  {
+    g_print("[TIMER][%s:%d] Live Streaming Case\n", __FUNCTION__, __LINE__);
+    //TODO _UpdateAsLive(pPlayerHandle, pPercent);
+
+    return TRUE;
+  }
+
+  /* 2. live streaming 이 아닌 경우 */
+
+  /* queue2 변경: query 결과 in_data 기준 percent 값이 들어오게 됨.
+  * buffered_data = in_data - decoded_data  하여 나온 값을 기준으로
+  * percent 및 bufferedSec 다시 계산함.
+  */
+  durSec = GST_TIME_AS_SECONDS(self->duration(self));
+  decodedSec = GST_TIME_AS_SECONDS(self->position(self, FALSE));
+
+  self->m_BufBeginSec = decodedSec;
+
+  if (bufferedSize == -1)  // EOS
+  {
+  remainSec 		= -1;
+  endSec 			= durSec;
+  bufferedPercent = 100;
+  }
+  else  // bufferedSize 값은 decoder 제외한 버퍼의 데이터 사이즈임. (in bytes)
+  {
+  if (bitrate == 0)
+  {
+  remainSec 		= -1;
+  endSec 			= durSec;
+  bufferedPercent = 100;
+  }
+  else
+  {
+    //TODO _GetUndecodedSize(self, &vdecBufferedSize, &adecBufferedSize);
+
+    bufferedTotal = bufferedSize + vdecBufferedSize + adecBufferedSize;
+    bufferedTotal -= correctionSize;
+    if (bufferedTotal < 0)
+    	bufferedTotal = 0;
+
+    remainSec 	= (gint)((float) bufferedTotal * BITS_PER_BYTE / bitrate);
+    endSec 		= decodedSec + remainSec;
+
+    if (decodedSec > durSec)
+    {
+    	g_print("[TIMER][%s:%d] decodedSec(%d) > durSec(%d): warning! \n", __FUNCTION__, __LINE__, decodedSec, durSec);
+    }
+    else  // durSec seems valid
+    {
+    	if (endSec > durSec)	// EOS
+    	{
+    		remainSec = -1;
+    		endSec = durSec;
+    	}
+    }
+
+    bufferedPercent = (gint)( ceil ((float)bufferedTotal * 100 / MEDIAPIPE_BUFFER_SIZE));
+    if (bufferedPercent > 100)
+    	bufferedPercent = 100;
+
+    pQuery = gst_query_new_buffering(GST_FORMAT_PERCENT);
+    if (gst_element_query(self->m_pipeHandle, pQuery) == FALSE)
+    {
+    	gst_query_unref(pQuery);
+    	g_print("[TIMER][%s:%d] gst_element_query failed!\n", __FUNCTION__, __LINE__);
+    }
+    else
+    {
+    	gst_query_parse_buffering_percent(pQuery, NULL, &inPercent);
+    	gst_query_unref(pQuery);
+
+    	if (inPercent == 100) // BUFFER_FULL
+    	{
+    		bufferedPercent = 100;
+    		self->m_bIsBufferFull = TRUE;
+    	}
+    	else
+    	{
+    		self->m_bIsBufferFull = FALSE;
+    	}
+    }
+  }
+  }
+
+  self->m_BufRemainSec = remainSec;
+  self->m_BufEndSec 	= endSec;
+  self->m_BufPercent 	= bufferedPercent;
+
+  if (pPercent != NULL)
+  *pPercent = bufferedPercent;
+
+  g_print("[TIMER]%d(%s)(Total:%"G_GINT64_FORMAT" = buffered(%"G_GINT64_FORMAT")+v(%"G_GUINT64_FORMAT")+a(%"G_GUINT64_FORMAT")-cor(%"G_GINT64_FORMAT"))(%"G_GINT32_FORMAT")\n",
+  													(gint32)self->m_BufPercent,
+  													(self->m_bIsBufferFull == TRUE)?"O":"X",
+  													(gint64)bufferedTotal,
+  													(gint64)bufferedSize,
+  													(guint64)vdecBufferedSize,
+  													(guint64)adecBufferedSize,
+  													(gint64)correctionSize,
+  													(gint32)inPercent);
+
+  g_print("\t\tavgIn/Out[%d:%d] dur/begine/end/remainedSec[## %d:%d:%d:%d ##] AvgBR/MaxBR[%d:%d]\n",
+  													(gint32)avgIn,
+  													(gint32)avgOut,
+  													(gint32)durSec,
+  													(gint32)self->m_BufBeginSec,
+  													(gint32)self->m_BufEndSec,
+  													(gint32)self->m_BufRemainSec,
+  													(gint32)self->m_AvgBitrate,
+  													(gint32)self->m_MaxBitrate);
+
+#if 0 //TODO: for prerolling func...
+  // now only for prerolling, playbin2 case
+  if (self->bUsePlaybin2)
+  {
+    if (!self->m_bPlaybackStarted)	// pre-buffering
+    {
+      // player control according to the buffer status
+      _SetBufferProgress(self, self->m_BufPercent, (int)self->m_BufRemainSec);
+    }
+    else	// pause <-> resume : buffering control (except live case)
+    {
+      _CheckBufferingState(self, self->m_BufPercent, (int)self->m_BufRemainSec);
+    }
+
+      // ToDo : if req option - need to buffer control == TRUE
+      //		if curr state == buffering pause state && remain sec >= 10
+      //			play the player and send the msg to application
+      		// when send the msg cb, need to check the pause state or buffering pause state
+      		// user can press the pause key after buffering pause before send the pause msg cb.
+      //		else if curr state	== play state && remain sec < 2
+      //			pause the player and send the msg to application
+  }
+#endif
+  return TRUE;
+}
+
+
+gboolean Pipeline::updateBufferingInfo(gpointer data){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  gboolean retVal = TRUE;
+
+  if (self == NULL)
+    return FALSE;
+
+  if (self->m_bPlaybackStopped)
+  {
+    g_print("[Buffering TIMER][%s] Stopped\n", __FUNCTION__);
+    return FALSE;
+  }
+
+  if (self->m_gstPipelineState == StoppedState)
+  {
+    g_print("[Buffering TIMER][%s] StoppedState: Skip update buffering infomation...\n", __FUNCTION__);
+    return TRUE; // contunue timer //
+  }
+  retVal = self->updateBufferingInfoSub(self, NULL, NULL);
+
+  return retVal;
+}
+
+gboolean Pipeline::informationMonitorStart(guint32 timeInterval)
+{
+  if ((m_pipeHandle == NULL) || (GST_IS_ELEMENT(m_pipeHandle) == FALSE))
+  {
+    std::cout << "Error. Gstreamer Player Handle is NULL!!!  " << endl;
+    return false;
+  }
+
+  m_positionTimerId = g_timeout_add(timeInterval, (GSourceFunc)updatePlayPosition, this);
+  m_durationTimerId = g_timeout_add(timeInterval, (GSourceFunc)updateDuration, this);
+
+  /* run buffering info update timer */
+  this->informationMonitorStartSpi(timeInterval); 
+  return true;
+}
+
+// end update information APIs
 
 
 
@@ -1554,21 +2027,14 @@ InformationHandler::InformationHandler ()
 {
 
 }
-
 InformationHandler::~InformationHandler ()
 {
 
 }
-
-
-
-
-
 BufferController::BufferController ()
 {
 
 }
-
 BufferController::~BufferController ()
 {
 

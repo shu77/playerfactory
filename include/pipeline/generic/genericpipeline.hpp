@@ -30,28 +30,14 @@ public:
   gboolean loadSpi_pre ();
   gboolean loadSpi_post ();
 
-
-  //void load();
-  //void unload();
-  //bool play(int rate);
-  //gboolean pause();
-  //void stop();
-  //bool seek(gint64 ms);
   bool loadFromURI ();
   bool handleURI ();
   gboolean isReadyToPlaySpi ();
-  //gint64 duration() const;
-  //gint64 position() const;
-  //gint volume() const;
-  //gboolean isMuted() const;
-  //gboolean isAudioAvailable() const;
-  //gboolean isVideoAvailable() const;
-  //gboolean isSeekable();
-  //gboolean isSeekable(gpointer data);
+  gboolean informationMonitorStartSpi(guint32 timeInterval);
+  gboolean positionSpi(gpointer data, gint64 *pos);
 
   gboolean setExtraElementOption ();
 
-  //Error error() const;
   GString errorString () const;
 
   bool setGstreamerDebugLevel (guint select, gchar * category,

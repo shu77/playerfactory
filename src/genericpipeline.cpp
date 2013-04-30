@@ -309,7 +309,41 @@ GenericPipeline::playbinNotifySource (GObject * pObject,
 
 }
 
+gboolean GenericPipeline::positionSpi(gpointer data, gint64 *pos)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  gint64 position = 0;
+  
+  GstFormat format = GST_FORMAT_TIME;
+#if (GST_VERSION_MAJOR >= 1)
+  if (self->m_pipeHandle
+      && gst_element_query_position (self->m_pipeHandle, format, &position))
+#else
+  if (self->m_pipeHandle
+      && gst_element_query_position (self->m_pipeHandle, &format, &position))
+#endif
+    *pos = position;
+  else
+  {
+    pos = 0;
+    return false;
+  }
+  return true;
+}
 
+gboolean GenericPipeline::informationMonitorStartSpi(guint32 timeInterval)
+{
+  if ((m_pipeHandle == NULL) || (GST_IS_ELEMENT(m_pipeHandle) == FALSE))
+  {
+    std::cout << "Error. Gstreamer Player Handle is NULL!!!  " << endl;
+    return false;
+  }
+  /* playbin using buffer monitor timer */
+  g_print("[%s] Buffering Timer Start!(Interval: 200ms) - update buffering info.\n", __FUNCTION__);
+  m_bufferingTimerId = g_timeout_add(200, (GSourceFunc)updateBufferingInfo, this);
+  return true;
+}
 
 /*
 * set gstreamer debug LOG level.

@@ -46,9 +46,14 @@ gboolean GenericPlayer::loadSpi (const std::string optionString)
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
 
   Pipeline::bsp_t pipeline = getPipeline ();
+  gboolean result = false;
 //      pipeline.reset(new GenericPipeline()); //moved to create time..
 //      setPipeline(pipeline);
-  pipeline->load (optionString);
+  result = pipeline->load (optionString);
+  if(result == true)
+      result = pipeline->informationMonitorStart(200);
+  
+  return result;
 }
 
 gboolean GenericPlayer::unloadSpi ()
