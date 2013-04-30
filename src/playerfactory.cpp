@@ -8,6 +8,7 @@
 #include <glibmm-utils/glibmm-utils.h>
 #include <pipeline/playerfactory.hpp>
 #include <pipeline/generic/genericplayer.hpp>
+#include <pipeline/custom/customplayer.hpp>
 
 using namespace std;
 using namespace mediapipeline;
@@ -79,9 +80,13 @@ Player::bsp_t PlayerFactory::create (unsigned int transport_type)
       && transport_type <= MEDIA_TRANS_PLAYBIN_START) {
     cout << "create GenericPlayer" << endl;
     player.reset (new GenericPlayer ());
-  } 
-  else
-  {
+  }
+  else if(transport_type >= MEDIA_TRANS_STATIC_START
+        && transport_type <= MEDIA_TRANS_STATIC_END) {
+    cout << "create CustomPlayer" << endl;
+    player.reset (new CustomPlayer ());
+  }
+  else{
 
   }
 

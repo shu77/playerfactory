@@ -4,7 +4,7 @@
  * customplayer.hpp
  *
  *  Created on: 2013. 4. 19.
- *      
+ *
  */
 
 #ifndef CUSTOMPLAYER_HPP_
@@ -15,40 +15,45 @@
 namespace mediapipeline
 {
 
-  class CustomPlayer:public AbstractPlayer
-  {
+class CustomPlayer:public AbstractPlayer
+{
 
-    friend class PlayerFactory;
+  friend class PlayerFactory;
 
-  private:
-      CustomPlayer ();
+private:
+  CustomPlayer ();
 
-  public: ~CustomPlayer ();
+public:
+  ~CustomPlayer ();
 
-    void playSpi (int rate);
-    void loadSpi ();
+  gboolean playSpi (int rate);
+  gboolean loadSpi (const std::string optionString);
 //      void loadSpi(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType);
 //      void loadSpi(MEDIA_CLIPOPT_T *clipOpt);
 
-    void unloadSpi ();
+  gboolean unloadSpi ();
+  gboolean pauseSpi ();
+  gboolean setPlaybackRateSpi (gfloat rate);
+  gboolean isReadyToPlay ();
+  Pipeline::State getPendingPipelineState ();
 
-    gint64 durationSpi () const;
-    gint64 positionSpi () const;
-    gint volumeSpi () const;
-    gboolean isMutedSpi () const;
-    gboolean isAudioAvailableSpi () const;
-    gboolean isVideoAvailableSpi () const;
-    gboolean isSeekableSpi () const;
-    gfloat playbackRateSpi () const;
+  gint64 durationSpi () const;
+  gint64 positionSpi () const;
+  gint volumeSpi () const;
+  gboolean isMutedSpi () const;
+  gboolean isAudioAvailableSpi () const;
+  gboolean isVideoAvailableSpi () const;
+  gboolean isSeekableSpi () const;
+  gfloat playbackRateSpi () const;
 
-    //Error error() const = 0;
-    GString errorStringSpi () const;
+  //Error error() const = 0;
+  GString errorStringSpi () const;
 
 
 
-  };
+};
 
 }
 #endif                          /* CUSTOMPLAYER_HPP_ */
 
-//end of file 
+//end of file

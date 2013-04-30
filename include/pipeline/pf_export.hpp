@@ -174,7 +174,7 @@ typedef enum MEDIA_CB_MSG
 
 typedef enum MEDIA_TRANSPORT
 {
-    /**< from gp4 media types >**/
+  /**< from gp4 media types >**/
   MEDIA_TRANS_UNKNOWN = 0x00,
   MEDIA_TRANS_PLAYBIN_START,    /* ---------------------------------------------------------- */
   MEDIA_TRANS_FILE,                  /**< File. File Play½Ã ¼±ÅÃ. */

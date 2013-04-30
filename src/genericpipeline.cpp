@@ -36,7 +36,7 @@ bool GenericPipeline::loadFromURI ()
 {
   if (m_pipeHandle) {
     GstBus *
-        pBus = NULL;
+    pBus = NULL;
     // message를 막기 위해 flushing 한다.
     pBus = gst_element_get_bus (m_pipeHandle);
     gst_bus_set_flushing (pBus, true);
@@ -57,19 +57,26 @@ bool GenericPipeline::handleURI ()
 {
   if (m_pipeHandle) {
     GFile *
-        pTmpFile = NULL;
+    pTmpFile = NULL;
     char *
-        pNewUri = NULL;
+    pNewUri = NULL;
     char *
-        pTmpPath = NULL;
+    pTmpPath = NULL;
     std::cout << "handleURI"<< endl;
-    
+
     /* get pipline options handler */
     Options::bsp_t options = getOptionsHandler ();
     /* get value from options handler */
-    std::string filename = options->getString ("clipOpt.mediafile");
-    std::cout << "filename=" << filename << endl;
-    
+    //options->checkKeyExistance("clipOpt.mediafile");
+    //std::string filename = options->getString ("clipOpt.mediafile");
+    std::string filename;
+    if(options->getString ("clipOpt.mediafile", &filename) == false)
+    {
+      std::cout << "(clipOpt.mediafile)uri not found" << endl;
+      return false;
+    }
+    std::cout << "URI = " << filename << endl;
+
     if (!strncmp (filename.c_str(), "mms://", strlen ("mms://"))) {
       // fix for maxdome FF issue. (set serverside tirck enable at mms streamming.)
       //TODO: BASIC_PLYR_CTRL_SetMmsURI(pPipeContainerHandle, true);
@@ -101,6 +108,7 @@ bool GenericPipeline::handleURI ()
     m_uri.append (pNewUri);
     if (pNewUri != NULL)
       g_free (pNewUri);
+    filename.clear();
   } else
     return false;
 
@@ -114,24 +122,24 @@ gboolean GenericPipeline::setExtraElementOption ()
     // DLNA info setting
     if (pPipeContainerHandle->isDLNA) {
       g_object_set (G_OBJECT (pPipeContainerHandle->m_pipeline),
-          "dlna-protocolinfo",
-          (gchar *) (pPipeContainerHandle->pDlnaInfo->pProtocolInfo), NULL);
+                    "dlna-protocolinfo",
+                    (gchar *) (pPipeContainerHandle->pDlnaInfo->pProtocolInfo), NULL);
       g_object_set (G_OBJECT (pPipeContainerHandle->m_pipeline),
-          "dlna-contentlength",
-          (guint64) (pPipeContainerHandle->pDlnaInfo->dContentLength), NULL);
+                    "dlna-contentlength",
+                    (guint64) (pPipeContainerHandle->pDlnaInfo->dContentLength), NULL);
       g_object_set (G_OBJECT (pPipeContainerHandle->m_pipeline),
-          "dlna-cleartextsize",
-          (guint64) (pPipeContainerHandle->pDlnaInfo->dCleartextSize), NULL);
+                    "dlna-cleartextsize",
+                    (guint64) (pPipeContainerHandle->pDlnaInfo->dCleartextSize), NULL);
       g_object_set (G_OBJECT (pPipeContainerHandle->m_pipeline), "dlna-opval",
-          (guint32) (pPipeContainerHandle->pDlnaInfo->opVal), NULL);
+                    (guint32) (pPipeContainerHandle->pDlnaInfo->opVal), NULL);
       g_object_set (G_OBJECT (pPipeContainerHandle->m_pipeline), "dlna-flagval",
-          (guint32) (pPipeContainerHandle->pDlnaInfo->flagVal), NULL);
+                    (guint32) (pPipeContainerHandle->pDlnaInfo->flagVal), NULL);
     }
 
     /* DRM type setting */
     //cout << "drm-type:", pPipeContainerHandle->drmType;
     g_object_set (G_OBJECT (pPipeContainerHandle->m_pipeline), "drm-type",
-        (gint) pPipeContainerHandle->drmType, NULL);
+                  (gint) pPipeContainerHandle->drmType, NULL);
 #endif
   } else
     return false;
@@ -168,7 +176,7 @@ gboolean GenericPipeline::loadSpi_post ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
 
-  // connect source notify. 
+  // connect source notify.
   g_signal_connect (G_OBJECT (m_pipeHandle), "notify::source", G_CALLBACK (playbinNotifySource), this);
 
   // setting values
@@ -221,7 +229,7 @@ gboolean::isReadyToPlaySpi ()
   }
   // playbin player case
   LMF_DBG_PRINT ("[%s:%d][ch:%d] Check Playbin2 Case\n", __FUNCTION__, __LINE__,
-      ch);
+                 ch);
   return FALSE;                 // prebuffering 중...
 }
 #endif
@@ -231,28 +239,28 @@ gboolean::isReadyToPlaySpi ()
 
 
 //Error GenericPipeline::error() const;
-     GString GenericPipeline::errorString () const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+GString GenericPipeline::errorString () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
 
-     }
+}
 
-     void
-     GenericPipeline::playbinNotifySource (GObject * pObject,
-    GParamSpec * pParam, gpointer u_data)
+void
+GenericPipeline::playbinNotifySource (GObject * pObject,
+                                      GParamSpec * pParam, gpointer u_data)
 {
   GenericPipeline *
-      genericPipeline = reinterpret_cast < GenericPipeline * >(u_data);
+  genericPipeline = reinterpret_cast < GenericPipeline * >(u_data);
 
   if (g_object_class_find_property (G_OBJECT_GET_CLASS (pObject), "source")) {
     GObject *
-        pSrcElement = NULL;
+    pSrcElement = NULL;
     GstBaseSrc *
-        pBaseSrc = NULL;
+    pBaseSrc = NULL;
     GstElementFactory *
-        pFactory = NULL;
+    pFactory = NULL;
     const gchar *
-        pName = NULL;
+    pName = NULL;
 
     // get source element
     g_object_get (pObject, "source", &pSrcElement, NULL);
@@ -263,37 +271,37 @@ gboolean::isReadyToPlaySpi ()
 
     if (!strcmp (pName, "souphttpsrc")) {       // do only http:
       LOG_FUNCTION_SCOPE_NORMAL_D
-          ("[GST_SIGNAL] ##### found soup http src. !!! ##### \n");
+      ("[GST_SIGNAL] ##### found soup http src. !!! ##### \n");
       if (g_object_class_find_property (G_OBJECT_GET_CLASS (pSrcElement),
-              "cookies")
+                                        "cookies")
           && g_object_class_find_property (G_OBJECT_GET_CLASS (pSrcElement),
-              "user-agent")) {
+                                           "user-agent")) {
         //_LMF_PLAYBIN2_SetHttpHeader(pPlayerHandle, (GstElement *)pSrcElement, pPlayerHandle->cookies, pPlayerHandle->userAgent, pPlayerHandle->extraHeader);
       } else {
         LOG_FUNCTION_SCOPE_NORMAL_D
-            ("[GST_SIGNAL]source has no property named \"cookies\" or \"user-agent\"\n");
+        ("[GST_SIGNAL]source has no property named \"cookies\" or \"user-agent\"\n");
       }
 
       if (g_object_class_find_property (G_OBJECT_GET_CLASS (pSrcElement),
-              "timeout")) {
+                                        "timeout")) {
         //_LMF_PLAYBIN2_SetSoupHttpSrcTimeOut(pPlayerHandle, (GstElement *)pSrcElement, pPlayerHandle->SoupHttpSrcTimeOut);
       } else {
         LOG_FUNCTION_SCOPE_NORMAL_D
-            ("[GST_SIGNAL]source has no property named \"timeout\" \n");
+        ("[GST_SIGNAL]source has no property named \"timeout\" \n");
       }
     }
 #if 0                           //TODO: ./src/libpf.so: undefined reference to `gst_base_src_get_type'
     pBaseSrc = GST_BASE_SRC (pSrcElement);
 
     if (g_object_class_find_property (G_OBJECT_GET_CLASS (pBaseSrc),
-            "blocksize")) {
+                                      "blocksize")) {
       LOG_FUNCTION_SCOPE_NORMAL_D
-          ("[GST_SIGNAL] blocksize property found: setting to 24KB\n");
+      ("[GST_SIGNAL] blocksize property found: setting to 24KB\n");
       g_object_set (G_OBJECT (pBaseSrc), "blocksize", (gulong) (24 * 1024),
-          NULL);
+                    NULL);
     } else {
       LOG_FUNCTION_SCOPE_NORMAL_D
-          ("[GST_SIGNAL] basesrc has no property named 'blocksize'. \n");
+      ("[GST_SIGNAL] basesrc has no property named 'blocksize'. \n");
     }
 #endif
     gst_object_unref (pSrcElement);
@@ -310,7 +318,7 @@ bool GenericPipeline::setGstreamerDebugLevel (guint select, gchar * category,
     GstDebugLevel level)
 {
   GError *
-      err;
+  err;
   if (!gst_init_check (NULL, NULL, &err)) {
     std::cout << "Error:" << err->message << endl;
     g_error_free (err);

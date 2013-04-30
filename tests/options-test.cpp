@@ -13,7 +13,7 @@ main (int argc, char **argv)
       utils::Options ());
 
   op->loadJSON
-      (" { \"debug\": { \"filename\": \"test.txt\", \"level\": \"4207846\" } }");
+  (" { \"debug\": { \"filename\": \"test.txt\", \"level\": \"4207846\" } }");
 
   cout << "debug.filename : " << op->getString ("debug.filename") << endl;
 

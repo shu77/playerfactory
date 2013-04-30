@@ -13,18 +13,19 @@
 namespace mediapipeline
 {
 
-  class PlayEventListener
+class PlayEventListener
+{
+public:
+  typedef boost::shared_ptr < PlayEventListener > bsp_t;
+
+  PlayEventListener ()
   {
-  public:typedef boost::shared_ptr < PlayEventListener > bsp_t;
-
-      PlayEventListener ()
-    {
-    };
-     ~PlayEventListener ()
-    {
-    };
-
   };
+  ~PlayEventListener ()
+  {
+  };
+
+};
 
 }
 

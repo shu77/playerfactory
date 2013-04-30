@@ -7,7 +7,7 @@
 #include <pipeline/pf_export.hpp>
 
 /*
-	jhtark : appfrwk_common_types.h ¿¡¼­ ¹ßÃé
+  jhtark : appfrwk_common_types.h ¿¡¼­ ¹ßÃé
 */
 
 #ifndef UINT8
@@ -81,20 +81,20 @@ typedef signed long long __SINT64;
 #endif
 
 #ifndef TRUE
-#define TRUE					(1)
+#define TRUE          (1)
 #endif
 
 #ifndef FALSE
-#define FALSE					(0)
+#define FALSE         (0)
 #endif
 
 /*
-	jhtark : appfrwk_openapi_types.h ¿¡¼­ ¹ßÃé
+  jhtark : appfrwk_openapi_types.h ¿¡¼­ ¹ßÃé
 */
 
 
 /*
-	jhtark. for custom player
+  jhtark. for custom player
 */
 typedef struct
 {
@@ -331,13 +331,13 @@ typedef enum
 } MEDIA_CUSTOM_SRC_TYPE_T;      /* jhtark webos refactory -LMF_MEDIA_SRC_TYPE_T -> MEDIA_CUSTOM_SRC_TYPE_T º¯°æ */
 
 
-#define MAX_TRACK_NUM	8
+#define MAX_TRACK_NUM 8
 #define MEDIA_BUFFER_SIZE (24*1024*1024)
 
- /**
- * This enumeration describes the src elem idx for static player
- *
- */
+/**
+* This enumeration describes the src elem idx for static player
+*
+*/
 typedef enum
 {
   IDX_MULTI = 0,
@@ -347,4 +347,4 @@ typedef enum
 } MEDIA_SRC_ELEM_IDX_T;         /* jhtark webos refactory -LMF_SRC_ELEM_IDX_T -> MEDIA_SRC_ELEM_IDX_T º¯°æ */
 
 #endif
-// end of file 
+// end of file

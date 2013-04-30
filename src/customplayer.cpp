@@ -1,9 +1,9 @@
 
 /*
- * 	customplayer.cpp
+ *  customplayer.cpp
  *
- *  	Created on: 2013. 4. 19.
- *     
+ *    Created on: 2013. 4. 19.
+ *
  */
 
 #include <pipeline/custom/custom_comm_types.hpp>
@@ -28,7 +28,7 @@ CustomPlayer::~CustomPlayer ()
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
 }
 
-void
+gboolean
 CustomPlayer::playSpi (int rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
@@ -37,8 +37,16 @@ CustomPlayer::playSpi (int rate)
 //      pipeline->play(rate);
 }
 
-void
-CustomPlayer::loadSpi ()
+gboolean CustomPlayer::pauseSpi ()
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  LOG_D ("pause", "CustomPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  return pipeline->pause ();
+}
+
+gboolean
+CustomPlayer::loadSpi (const std::string optionString)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
 
@@ -48,36 +56,30 @@ CustomPlayer::loadSpi ()
 //      pipeline->load();
 }
 
-#if 0
-void
-CustomPlayer::loadSpi (MEDIA_STREAMOPT_T * streamOpt,
-    MEDIA_FORMAT_T mediaFormatType)
+
+gboolean CustomPlayer::isReadyToPlay ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-
-  std::cout << "not supported API at genericPlayer. ";
-
-  //Pipeline::bsp_t pipeline = getPipeline();
-  //pipeline.reset(new GenericPipeline());
-  //setPipeline(pipeline);
-  //pipeline->load();
-}
-
-void
-CustomPlayer::loadSpi (MEDIA_CLIPOPT_T * clipOpt)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-
   Pipeline::bsp_t pipeline = getPipeline ();
-
-  /* TODO : change GenericPipeline -> CustomPipeline */
-  pipeline.reset (new GenericPipeline ());
-  setPipeline (pipeline);
-  pipeline->load (clipOpt);
+  return pipeline->isReadyToPlay ();
 }
 
-#endif
-void
+Pipeline::State CustomPlayer::getPendingPipelineState ()
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  return pipeline->getPendingPipelineState ();
+}
+
+
+gboolean CustomPlayer::setPlaybackRateSpi (gfloat rate)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  pipeline->setPlaybackRate (rate);
+}
+
+gboolean
 CustomPlayer::unloadSpi ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
@@ -86,77 +88,77 @@ CustomPlayer::unloadSpi ()
 }
 
 
-     gint64 CustomPlayer::durationSpi () constconst const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-       //Pipeline::bsp_t pipeline = getPipeline();
-       //return pipeline->duration();
-     }
+gint64 CustomPlayer::durationSpi () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  //Pipeline::bsp_t pipeline = getPipeline();
+  //return pipeline->duration();
+}
 
 gint64
-     CustomPlayer::positionSpi () const const const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-       //Pipeline::bsp_t pipeline = getPipeline();
-       //return pipeline->position();
-     }
+CustomPlayer::positionSpi () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  //Pipeline::bsp_t pipeline = getPipeline();
+  //return pipeline->position();
+}
 
 gint
-     CustomPlayer::volumeSpi () const const const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-       //Pipeline::bsp_t pipeline = getPipeline();
-       //return pipeline->volume();
-     }
+CustomPlayer::volumeSpi () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  //Pipeline::bsp_t pipeline = getPipeline();
+  //return pipeline->volume();
+}
 
 gboolean
-     CustomPlayer::isMutedSpi () const const const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-       //Pipeline::bsp_t pipeline = getPipeline();
-       //return pipeline->isMuted();
-     }
+CustomPlayer::isMutedSpi () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  //Pipeline::bsp_t pipeline = getPipeline();
+  //return pipeline->isMuted();
+}
 
 gboolean
-     CustomPlayer::isAudioAvailableSpi () const const const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-       //Pipeline::bsp_t pipeline = getPipeline();
-       //return pipeline->isAudioAvailable();
-     }
+CustomPlayer::isAudioAvailableSpi () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  //Pipeline::bsp_t pipeline = getPipeline();
+  //return pipeline->isAudioAvailable();
+}
 
 gboolean
-     CustomPlayer::isVideoAvailableSpi () const const const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-       //Pipeline::bsp_t pipeline = getPipeline();
-       //return pipeline->isVideoAvailable();
-     }
+CustomPlayer::isVideoAvailableSpi () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  //Pipeline::bsp_t pipeline = getPipeline();
+  //return pipeline->isVideoAvailable();
+}
 
 gboolean
-     CustomPlayer::isSeekableSpi () const const const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-       //Pipeline::bsp_t pipeline = getPipeline();
-       //return pipeline->isSeekable();
-     }
+CustomPlayer::isSeekableSpi () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  //Pipeline::bsp_t pipeline = getPipeline();
+  //return pipeline->isSeekable();
+}
 
 gfloat
-     CustomPlayer::playbackRateSpi () const const const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-       //Pipeline::bsp_t pipeline = getPipeline();
-       //return pipeline->playbackRate();
-     }
+CustomPlayer::playbackRateSpi () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  //Pipeline::bsp_t pipeline = getPipeline();
+  //return pipeline->playbackRate();
+}
 
 
 //Error error() const = 0;
 GString
-     CustomPlayer::errorStringSpi () const const const
-     {
-       LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
-       //Pipeline::bsp_t pipeline = getPipeline();
-       //return pipeline->errorString();
-     }
+CustomPlayer::errorStringSpi () const
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  //Pipeline::bsp_t pipeline = getPipeline();
+  //return pipeline->errorString();
+}
 
-//end of file 
+//end of file

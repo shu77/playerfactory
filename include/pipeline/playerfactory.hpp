@@ -19,25 +19,25 @@
 namespace mediapipeline
 {
 
-  class PlayerFactory:private boost::noncopyable
-  {
+class PlayerFactory:private boost::noncopyable
+{
 
-  public:
-    typedef boost::shared_ptr < PlayerFactory > bsp_t;
+public:
+  typedef boost::shared_ptr < PlayerFactory > bsp_t;
 
-  private:
-      PlayerFactory ();
+private:
+  PlayerFactory ();
 
-    static boost::weak_ptr < PlayerFactory > _internal_ptr;
+  static boost::weak_ptr < PlayerFactory > _internal_ptr;
 
-  public:
-     ~PlayerFactory ();
+public:
+  ~PlayerFactory ();
 
-    static bsp_t getFactory ();
-    const std::string getName ();
-      Player::bsp_t create (const std::string transport_type);
-      Player::bsp_t create (unsigned int transport_type);
-  };
+  static bsp_t getFactory ();
+  const std::string getName ();
+  Player::bsp_t create (const std::string transport_type);
+  Player::bsp_t create (unsigned int transport_type);
+};
 
 }
 

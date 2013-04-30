@@ -13,40 +13,41 @@
 namespace mediapipeline
 {
 
-  class GenericPlayer:public AbstractPlayer
-  {
+class GenericPlayer:public AbstractPlayer
+{
 
-    friend class PlayerFactory;
+  friend class PlayerFactory;
 
-  private:
-      GenericPlayer ();
+private:
+  GenericPlayer ();
 
-  public: ~GenericPlayer ();
+public:
+  ~GenericPlayer ();
 
-    gboolean playSpi (int rate);
-    //void loadSpi();
-    gboolean loadSpi (const std::string optionString);
-    gboolean unloadSpi ();
-    gboolean pauseSpi ();
-    gboolean setPlaybackRateSpi (gfloat rate);
-    gboolean isReadyToPlay ();
-      Pipeline::State getPendingPipelineState ();
+  gboolean playSpi (int rate);
+  //void loadSpi();
+  gboolean loadSpi (const std::string optionString);
+  gboolean unloadSpi ();
+  gboolean pauseSpi ();
+  gboolean setPlaybackRateSpi (gfloat rate);
+  gboolean isReadyToPlay ();
+  Pipeline::State getPendingPipelineState ();
 
-    gint64 durationSpi () const;
-    gint64 positionSpi () const;
-    gint volumeSpi () const;
-    gboolean isMutedSpi () const;
-    gboolean isAudioAvailableSpi () const;
-    gboolean isVideoAvailableSpi () const;
-    gboolean isSeekableSpi () const;
-    gfloat playbackRateSpi () const;
+  gint64 durationSpi () const;
+  gint64 positionSpi () const;
+  gint volumeSpi () const;
+  gboolean isMutedSpi () const;
+  gboolean isAudioAvailableSpi () const;
+  gboolean isVideoAvailableSpi () const;
+  gboolean isSeekableSpi () const;
+  gfloat playbackRateSpi () const;
 
-    //Error error() const = 0;
-    GString errorStringSpi () const;
+  //Error error() const = 0;
+  GString errorStringSpi () const;
 
 
 
-  };
+};
 
 }
 #endif                          /* GENERICPLAYER_HPP_ */
