@@ -4,9 +4,12 @@
  *  Created on: 2013. 4. 5.
  *      Author: jeongseok.kim
  */
-
+#ifdef USE_GLIB_MMUTILS
 #include <glibmm-utils/glibmm-utils.h>
-
+#else
+#define LOG_FUNCTION_SCOPE_NORMAL_D g_print
+#define LOG_D g_print
+#endif
 #include <pipeline/abstractplayer.hpp>
 #include <pipeline/event/playeventlistener.hpp>
 

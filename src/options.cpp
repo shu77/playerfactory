@@ -11,7 +11,12 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/foreach.hpp>
 
+#ifdef USE_GLIB_MMUTILS
 #include <glibmm-utils/glibmm-utils.h>
+#else
+#define LOG_FUNCTION_SCOPE_NORMAL_D g_print
+#define LOG_D g_print
+#endif
 
 #include <pipeline/utils/options.hpp>
 

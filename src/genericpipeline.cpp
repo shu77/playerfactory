@@ -15,7 +15,12 @@
 #include <gio/gio.h>
 
 //#include <gst/app/gstappbuffer.h>//playbin+appsrc not support at NC5.0
+#ifdef USE_GLIB_MMUTILS
 #include <glibmm-utils/glibmm-utils.h>
+#else
+#define LOG_FUNCTION_SCOPE_NORMAL_D g_print
+#define LOG_D g_print
+#endif
 #include <pipeline/generic/genericpipeline.hpp>
 
 using namespace mediapipeline;

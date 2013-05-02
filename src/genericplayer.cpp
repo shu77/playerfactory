@@ -5,7 +5,12 @@
  *      Author: jeongseok.kim
  */
 
+#ifdef USE_GLIB_MMUTILS
 #include <glibmm-utils/glibmm-utils.h>
+#else
+#define LOG_FUNCTION_SCOPE_NORMAL_D g_print
+#define LOG_D g_print
+#endif
 #include <pipeline/generic/genericplayer.hpp>
 #include <pipeline/generic/genericpipeline.hpp>
 

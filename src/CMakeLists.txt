@@ -1,13 +1,22 @@
 include_directories (${pf_SOURCE_DIR}/include)
 include_directories(${Glib_INCLUDE_DIRS})
 include_directories(${GIO_INCLUDE_DIRS})
-include_directories(${Glibmm_INCLUDE_DIRS})
 include_directories(${GSTREAMER_INCLUDE_DIRS})
-include_directories(${GlibmmUtils_INCLUDE_DIRS})
+message(STATUS "now check mmutils at src")
+if(OPTION_MMUTILS)
+  message(STATUS "DEFINE_MMUTILS enabled... adding include dirs")
+  add_definitions( -DUSE_GLIB_MMUTILS)
+  include_directories(${Glibmm_INCLUDE_DIRS})
+  include_directories(${GlibmmUtils_INCLUDE_DIRS})
+endif(OPTION_MMUTILS)
 
 set(OBJS playerfactory abstractplayer pipeline genericplayer genericpipeline
          options customplayer custompipeline)
 
 add_library(pf SHARED ${OBJS})
-target_link_libraries(pf ${Glibmm_LIBRARIES} ${GlibmmUtils_LIBRARIES} ${Glib_LIBRARIES} ${GSTREAMER_LIBRARIES} 
-${GIO_LIBRARIES})
+if(OPTION_MMUTILS)
+  message(STATUS "DEFINE_MMUTILS enabled... adding libraries")
+  target_link_libraries(pf ${Glibmm_LIBRARIES} ${GlibmmUtils_LIBRARIES} ${Glib_LIBRARIES} ${GSTREAMER_LIBRARIES} ${GIO_LIBRARIES})
+else(OPTION_MMUTILS)
+  target_link_libraries(pf ${Glib_LIBRARIES} ${GSTREAMER_LIBRARIES} ${GIO_LIBRARIES})
+endif(OPTION_MMUTILS)
