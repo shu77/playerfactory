@@ -1790,8 +1790,141 @@ CustomPipeline::handleMutedChange (GObject * pObject, GParamSpec * pParam,
 
 
 }
+void CustomPipeline::setInterleavingTypeSpi(gpointer data, GstObject *pObj, gint stream, gpointer user_data)
+{
+
+}
+
+void CustomPipeline::getUndecodedSizeSpi(gpointer data, guint64* pVdecBufferedSize, guint64* pAdecBufferedSize)
+{
+
+}
+
+gboolean CustomPipeline::isReadyToPlaySpi ()
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+/* TODO : 
+    // static player case
+    g_print("[%s:%d] Check Static Case\n", __FUNCTION__, __LINE__);
+    if (GST_STATIC_IsPrerolling(ch))
+        return FALSE;        // prebuffering Сп...
+    else
+        return TRUE;
+*/
+  return TRUE;
+}
+void CustomPipeline::getStreamsInfoSpi(gpointer data)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+return;
+}
+gboolean CustomPipeline::updateVideoInfoSpi(gpointer data)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+return true;
+}
+void CustomPipeline::handleStateMsgPauseSpi_pre(gpointer data)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+}
+void CustomPipeline::correctBufferedBytesSpi(gpointer data)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+}
+void CustomPipeline::videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+}
+void CustomPipeline::audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+}
 
 
+gboolean CustomPipeline::checkTimeToDecodeSpi(gpointer data)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
+
+#if 0 // TODO ...
+	LMF_STATUS_T retVal = LMF_OK;
+	GstClockTime start_time, base_time, curTime, curTime2;
+    GstClock *cur_clock, *new_clock;
+
+	MF_ENTER_FUNC();
+
+	cur_clock = NULL;
+	new_clock = NULL;
+	start_time = base_time = curTime = curTime2 = 0;
+
+	if ((gPipelineInfo[ch].contentInfo.ptsToDecode > 0) && (gPipelineInfo[ch].srcType == LMF_MEDIA_SRC_TYPE_ES))
+	{
+		g_print("[%s:%d][Ch:%d] set start pts time = %lld\n", __FUNCTION__, __LINE__, ch, gPipelineInfo[ch].contentInfo.ptsToDecode);
+
+		base_time = gst_element_get_base_time(gPipelineInfo[ch].pPipeline);
+		start_time = gst_element_get_start_time(gPipelineInfo[ch].pPipeline);
+		cur_clock = gst_element_get_clock (gPipelineInfo[ch].pPipeline);
+
+		if (cur_clock) {
+		  curTime = gst_clock_get_time (cur_clock);
+		  curTime2 = curTime - gst_element_get_base_time (gPipelineInfo[ch].pPipeline);
+		  gst_object_unref (cur_clock);
+		}
+
+		g_print("[Before] base_time = %lld, start_time = %lld, cur = %lld, %lld\n", base_time, start_time, curTime, curTime2);
+
+		start_time += gPipelineInfo[ch].contentInfo.ptsToDecode;
+
+		gst_element_set_start_time(gPipelineInfo[ch].pPipeline, start_time);
+		//gst_element_set_base_time(gPipelineInfo[ch].pPipeline, GST_CLOCK_TIME_NONE);
+
+		if (gPipelineInfo[ch].pAudioDecoderElement != NULL)
+			gst_element_set_start_time(gPipelineInfo[ch].pAudioDecoderElement, start_time);
+
+		if (gPipelineInfo[ch].pVideoDecoderElement != NULL)
+			gst_element_set_start_time(gPipelineInfo[ch].pVideoDecoderElement, start_time);
+
+		if (gPipelineInfo[ch].pAudioQueueElement != NULL)
+			gst_element_set_start_time(gPipelineInfo[ch].pAudioQueueElement, start_time);
+
+		if (gPipelineInfo[ch].pVideoQueueElement != NULL)
+			gst_element_set_start_time(gPipelineInfo[ch].pVideoQueueElement, start_time);
+
+		if (gPipelineInfo[ch].pDemuxElement!= NULL)
+			gst_element_set_start_time(gPipelineInfo[ch].pDemuxElement, start_time);
+
+		if (gPipelineInfo[ch].srcInfo[IDX_VIDEO].pSrcElement != NULL)
+			gst_element_set_start_time(gPipelineInfo[ch].srcInfo[IDX_VIDEO].pSrcElement, start_time);
+
+		if (gPipelineInfo[ch].srcInfo[IDX_AUDIO].pSrcElement != NULL)
+			gst_element_set_start_time(gPipelineInfo[ch].srcInfo[IDX_AUDIO].pSrcElement, start_time);
+
+		gPipelineInfo[ch].contentInfo.ptsToDecode = 0;
+
+		base_time = start_time = curTime = curTime2 = 0;
+
+		base_time = gst_element_get_base_time(gPipelineInfo[ch].pPipeline);
+		start_time = gst_element_get_start_time(gPipelineInfo[ch].pPipeline);
+		cur_clock = gst_element_get_clock (gPipelineInfo[ch].pPipeline);
+
+		if (cur_clock) {
+		  curTime = gst_clock_get_time (cur_clock);
+		  curTime2 = curTime - gst_element_get_base_time (gPipelineInfo[ch].pPipeline);
+		  gst_object_unref (cur_clock);
+		}
+
+		g_print("[After] base_time = %lld, start_time = %lld, cur = %lld, %lld\n", base_time, start_time, curTime, curTime2);
+	}
+
+	return retVal;
+#endif
+}
 
 
 //end of file

@@ -167,6 +167,16 @@ public:
   bool play (int rate);
   gboolean informationMonitorStartSpi(guint32 timeInterval);
   gboolean positionSpi(gpointer data, gint64 *pos);
+  void setInterleavingTypeSpi(gpointer data, GstObject *pObj, gint stream, gpointer user_data);
+  void getUndecodedSizeSpi(gpointer data, guint64* pVdecBufferedSize, guint64* pAdecBufferedSize);
+  gboolean isReadyToPlaySpi ();
+  void getStreamsInfoSpi(gpointer data);
+  gboolean updateVideoInfoSpi(gpointer data);
+  void handleStateMsgPauseSpi_pre(gpointer data);
+  void correctBufferedBytesSpi(gpointer data);
+  static void videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
+  static void audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
+  gboolean checkTimeToDecodeSpi(gpointer data);
 
   gboolean SetLanguage(gint32 audioNum);
   MEDIA_STATUS_T FeedStream (guint8 * pBuffer, guint32 bufferSize,

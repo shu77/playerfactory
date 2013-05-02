@@ -35,7 +35,21 @@ public:
   gboolean isReadyToPlaySpi ();
   gboolean informationMonitorStartSpi(guint32 timeInterval);
   gboolean positionSpi(gpointer data, gint64 *pos);
+  void setInterleavingTypeSpi(gpointer data, GstObject *pObj, gint stream, gpointer user_data);
+  void getUndecodedSizeSpi(gpointer data, guint64* pVdecBufferedSize, guint64* pAdecBufferedSize);
 
+  static void correctBufferedBytesSpi(gpointer data);
+  static void videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
+  static void audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
+
+  void getStreamsInfoSpi(gpointer data);
+  gboolean updateVideoInfoSpi(gpointer data);
+  void handleStateMsgPauseSpi_pre(gpointer data);
+  void registerUnderrunSignalHandlerSpi(gpointer data);
+  gboolean checkTimeToDecodeSpi(gpointer data);
+
+
+  
   gboolean setExtraElementOption ();
 
   GString errorString () const;

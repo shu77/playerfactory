@@ -33,6 +33,7 @@ using namespace std;
 #define DURATION_QUERY_MAX_NUM 20 //200ms x 20 =  4s
 #define BITS_PER_BYTE 8
 #define SOUP_HTTP_SRC_TIMEOUT 30 
+#define BUFF_ADJ_MAX (5*1024*1024)
 
 #define LMF_TO_LOWER(src)           \
   do{                   \
@@ -156,6 +157,8 @@ public:
   //handle buscallback
   bool compareDouble (const double num1, const double num2);
   bool connectGstBusCallback ();
+  gboolean disconnectGstBusCallback();
+
   void checkSupported (gpointer data);
   static void collectTags (const GstTagList * tag_list, const gchar * tag,
                            gpointer user_data);
@@ -200,27 +203,49 @@ public:
 
   /* notify state change */
   void pipelineEventNotify (gpointer data, MEDIA_CB_MSG_T msg);
+  bool sendDuration(gint64 duration);
+  bool sendPositionUpdate(gint64 currPosition);
+
   void stateChanged (Pipeline::State state);
   void seekableStateChanged (bool seekable);
   void playbackRateChanged (gfloat rate);
   virtual GString errorString () const = 0;
   enum Error gstError;
+
+  Pipeline::State getPlayerState();
+  void setPlayerState(Pipeline::State state);
+
   virtual bool setGstreamerDebugLevel (guint select, gchar * category,
                                        GstDebugLevel level) = 0;
   /* start update information APIs */
   static gboolean updatePlayPosition(gpointer data);
+  gboolean informationMonitorStop();
   gboolean informationMonitorStart(guint32 timeInterval);
   virtual gboolean informationMonitorStartSpi(guint32 timeInterval) = 0;
   static gboolean updateDuration(gpointer data);
   static gboolean updateBufferingInfo(gpointer data);
   gboolean updateBufferingInfoSub(gpointer data, GstMessage *pMessage, gint *pPercent);
-
-  
+  gboolean updateAsLive(gpointer data, gint *pPercent);
+  gboolean setBufferProgress(gpointer data, int progress, int bufferedSec);
+  virtual void setInterleavingTypeSpi(gpointer data, GstObject *pObj, gint stream, gpointer user_data)=0;
+  virtual void getUndecodedSizeSpi(gpointer data, guint64* pVdecBufferedSize, guint64* pAdecBufferedSize)=0;
+  void updateTags(gpointer data, GstTagList *pTagList);
+  void handlePlayerMsg_AsyncDone(gpointer data);
+  //virtual void getStreamsInfoSpi(gpointer data)= 0; // <-- TODO : Check...!!!!
+  //virtual gboolean updateVideoInfoSpi(gpointer data) = 0; // <-- TODO : Check...!!!!
+  virtual void handleStateMsgPauseSpi_pre(gpointer data) = 0;
+ // virtual void correctBufferedBytesSpi(gpointer data) = 0; // <-- TODO : Check...!!!!
+  //virtual void videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data) = 0; // <-- TODO : Check...!!!!
+  //virtual void audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data) = 0; // <-- TODO : Check...!!!!
+  virtual gboolean checkTimeToDecodeSpi(gpointer data) = 0;
   /* start update information APIs */
+  gboolean checkPendingEOS(gpointer data);
+  gboolean isSeekableMedia(gpointer data);
 
   std::string m_uri;
   std::string m_subtitle_uri;
   /* common */
+  enum State m_playertState;   /* user input control status */
   enum State m_gstPipelineState;      /* gstreamer pipeline status */
   enum State m_pendingState;  /* pending pipeline state */
   GstBus *m_busHandler;       /* gstreamer bus callback handler */

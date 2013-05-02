@@ -222,28 +222,6 @@ gboolean GenericPipeline::isReadyToPlaySpi ()
   return true;                  //temp..
 }
 
-#if 0                           //TODO custiom player...
-gboolean::isReadyToPlaySpi ()
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
-
-  // play already done -> Resume Case
-  if (m_bPlaybackStarted == true) {
-    cout << " Resume Case" << endl;
-    return true;
-  }
-  // playbin player case
-  LMF_DBG_PRINT ("[%s:%d][ch:%d] Check Playbin2 Case\n", __FUNCTION__, __LINE__,
-                 ch);
-  return FALSE;                 // prebuffering 중...
-}
-#endif
-
-
-
-
-
-//Error GenericPipeline::error() const;
 GString GenericPipeline::errorString () const
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
@@ -337,6 +315,101 @@ gboolean GenericPipeline::positionSpi(gpointer data, gint64 *pos)
   return true;
 }
 
+void GenericPipeline::setInterleavingTypeSpi(gpointer data, GstObject *pObj, gint stream, gpointer user_data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  GstElement *pVideosink = NULL;
+
+  g_print("[%s:%d] 3D type : %d \n", __FUNCTION__, __LINE__, self->m_interleavingType);
+
+  if ((self->m_pipeHandle!= NULL))// && (pPipeContainerHandle->bUsePlaybin))
+  {
+    g_object_get(G_OBJECT(self->m_pipeHandle), "video-sink", &pVideosink, NULL);
+
+    if ((pVideosink != NULL)) // && (self->bUsePlaybin))
+    {
+      if ((g_object_class_find_property(G_OBJECT_GET_CLASS(pVideosink), "interleaving_type")))
+      {
+        g_object_set(G_OBJECT(pVideosink), "interleaving_type", self->m_interleavingType, NULL);
+        g_print("[%s:%d] 3D type setting ok \n", __FUNCTION__, __LINE__);
+      }
+      else
+      {
+        g_print("[%s:%d] There is no 'interleaving_type' property.\n", __FUNCTION__, __LINE__);
+      }
+      gst_object_unref(pVideosink);
+    }
+    else
+    {
+      g_print("[%s:%d] No Videosink or No playbin\n", __FUNCTION__, __LINE__);
+    }
+  }
+  else
+  {
+    g_print("[%s:%d] No player or static \n", __FUNCTION__, __LINE__);
+  }
+}
+
+void GenericPipeline::getUndecodedSizeSpi(gpointer data, guint64* pVdecBufferedSize, guint64* pAdecBufferedSize)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  guint64 vdecBufferedSize = 0;
+  guint64 adecBufferedSize = 0;
+  GstElement *pVdecsink = NULL;
+  GstElement *pAdecsink = NULL;
+
+  if (self == NULL)
+  {
+    g_print("[%s:%d] handle is NULL!!!!!!\n", __FUNCTION__, __LINE__);
+    return;
+  }
+
+  g_object_get (G_OBJECT(self->m_pipeHandle), "video-sink", &pVdecsink, NULL);
+  if (pVdecsink != NULL)
+  {
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(pVdecsink), "undecoded-size"))
+    {
+      g_object_get(G_OBJECT(pVdecsink), "undecoded-size", &vdecBufferedSize, NULL);
+    }
+    else
+    {
+      g_print("[%s] no such property 'undecoded-size' in video-sink\n", __FUNCTION__);
+    }
+
+    gst_object_unref(pVdecsink);
+  }
+  else
+  {
+    g_print("[%s] no video-sink\n", __FUNCTION__);
+  }
+
+  g_object_get (G_OBJECT (self->m_pipeHandle), "audio-sink", &pAdecsink, NULL);
+  if (pAdecsink != NULL)
+  {
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(pAdecsink), "undecoded-size"))
+    {
+      g_object_get(G_OBJECT(pAdecsink), "undecoded-size", &adecBufferedSize, NULL);
+    }
+    else
+    {
+      g_print("[%s] no such property 'undecoded-size' in audio-sink\n", __FUNCTION__);
+    }
+
+    gst_object_unref(pAdecsink);
+  }
+  else
+  {
+    g_print("[%s] no audio-sink\n", __FUNCTION__);
+  }
+
+  *pVdecBufferedSize = vdecBufferedSize;
+  *pAdecBufferedSize = adecBufferedSize;
+
+}
+
+
 gboolean GenericPipeline::informationMonitorStartSpi(guint32 timeInterval)
 {
   if ((m_pipeHandle == NULL) || (GST_IS_ELEMENT(m_pipeHandle) == FALSE))
@@ -350,6 +423,258 @@ gboolean GenericPipeline::informationMonitorStartSpi(guint32 timeInterval)
   return true;
 }
 
+void GenericPipeline::getStreamsInfoSpi(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  gint audioTrackCount = 0;
+  gint videoTrackCount = 0;
+
+  //if ( ->bUsePlaybin2)
+  {
+    g_object_get(G_OBJECT(self->m_pipeHandle), "n-audio", &audioTrackCount, NULL);
+    g_object_get(G_OBJECT(self->m_pipeHandle), "n-video", &videoTrackCount, NULL);
+
+    g_print("n-audio = %d   \r\n", audioTrackCount);
+    g_print("n-video = %d   \r\n", videoTrackCount);
+  }
+  //else
+  //{
+  //  g_print(" STATIC pipeline playback mode. \r\n");
+  //}
+
+  if (audioTrackCount > 0)
+  {
+    self->m_bAudioAvailable = TRUE;
+  }
+
+  if (videoTrackCount > 0)
+  {
+    self->m_bVideoAvailable = TRUE;
+  }
+}
+
+gboolean GenericPipeline::updateVideoInfoSpi(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. pipeline Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return FALSE;
+  }
+
+  if ((self->m_pipeHandle) && (self->m_gstPipelineState != self->StoppedState))
+  {
+    /* get video w/h info */
+    GstElement *pVideosink = NULL;
+    g_object_get (G_OBJECT (self->m_pipeHandle), "video-sink", &pVideosink, NULL);
+    if (pVideosink != NULL)
+    {
+      GstPad *pPad = NULL;
+      if ((pPad = gst_element_get_static_pad(pVideosink, "sink")) != NULL)
+      {
+        GstCaps *pCaps = NULL;
+        
+#if (GST_VERSION_MAJOR >= 1)
+        if ((pCaps = gst_pad_get_current_caps(pPad)) != NULL)
+#else
+        if ((pCaps = gst_pad_get_negotiated_caps(pPad)) != NULL)
+#endif
+        {
+          GstStructure *str;
+          gint width, height;
+          str = gst_caps_get_structure(pCaps, 0);
+          if (gst_structure_get_int(str, "width", &width) && gst_structure_get_int(str, "height", &height))
+          {
+            g_print("[%s:%d] VIDEO: %dx%d\n", __FUNCTION__, __LINE__, width, height);
+            self->m_source_width = width;
+            self->m_source_height = height;
+          }
+          else
+          {
+            g_print("[%s:%d] VIDEO resolution not found\n", __FUNCTION__, __LINE__);
+          }
+          gst_caps_unref(pCaps);
+        }
+        else
+        {
+          g_print("[%s:%d] VIDEO caps not found\n", __FUNCTION__, __LINE__);
+        }
+        gst_object_unref(GST_OBJECT(pPad));
+      }
+      else
+      {
+        g_print("[%s:%d] VIDEO pads not found\n", __FUNCTION__, __LINE__);
+      }
+      gst_object_unref(GST_OBJECT(pVideosink));
+    }
+    else
+    {
+      g_print("[%s:%d] couldn't find VIDEOSINK \n", __FUNCTION__, __LINE__);
+      return FALSE;
+    }
+  }
+  else
+  {
+    g_print("[%s] failed (pPlayerHandle->player is null)\n", __FUNCTION__);
+    return FALSE;
+  }
+  return TRUE;
+}
+
+
+void GenericPipeline::correctBufferedBytesSpi(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  
+  GstQuery *pQuery = NULL;
+  GstFormat queryFormat = GST_FORMAT_BYTES;
+  gint64 bufferedSize = 0;
+  guint64 vdecDataSize = 0;
+  guint64 adecDataSize = 0;
+  gint64 totalBufferedSize = 0;
+  GstElement *pVdecsink = NULL;
+  GstElement *pAdecsink = NULL;
+
+  if (self->m_bLiveStreaming)
+  {
+    g_print("[%s:%d] underrun while playing live stream\n", __FUNCTION__, __LINE__);
+    return;
+  }
+  g_print(" playbin CorrectBufferedBytes %p %p \n", self->m_pipeHandle, self);
+  pQuery = gst_query_new_buffering(GST_FORMAT_BYTES);
+  if (gst_element_query(self->m_pipeHandle, pQuery) == FALSE)
+  {
+    gst_query_unref(pQuery);
+    g_print("[%s:%d] query failed: cannot correct buffered bytes\n", __FUNCTION__, __LINE__);
+    return;
+  }
+  // query success.
+  gst_query_parse_buffering_range(pQuery, &queryFormat, NULL, &bufferedSize, NULL);
+  gst_query_unref(pQuery);
+  if (bufferedSize == -1)
+  {
+    g_print("[%s:%d] Streaming is already finished!! (don't need to adj)\n", __FUNCTION__, __LINE__);
+    return;
+  }
+  g_object_get (G_OBJECT (self->m_pipeHandle), "video-sink", &pVdecsink, NULL);
+  if (pVdecsink != NULL)
+  {
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(pVdecsink), "undecoded-size"))
+    {
+    g_object_get(G_OBJECT(pVdecsink), "undecoded-size", &vdecDataSize, NULL);
+    }
+
+    gst_object_unref(pVdecsink);
+  }
+
+  g_object_get (G_OBJECT (self->m_pipeHandle), "audio-sink", &pAdecsink, NULL);
+  if (pAdecsink != NULL)
+  {
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(pAdecsink), "undecoded-size"))
+    {
+      g_object_get(G_OBJECT(pAdecsink), "undecoded-size", &adecDataSize, NULL);
+    }
+    gst_object_unref(pAdecsink);
+  }
+
+  totalBufferedSize = bufferedSize + vdecDataSize + adecDataSize;
+  g_print("%"G_GINT64_FORMAT": %"G_GINT64_FORMAT"+%"G_GUINT64_FORMAT"+%"G_GUINT64_FORMAT"\n",
+                                            totalBufferedSize, bufferedSize, vdecDataSize, adecDataSize);
+
+  if (totalBufferedSize >= BUFF_ADJ_MAX)
+  {
+    g_print("new cor = %"G_GINT64_FORMAT"(spec over)\n", totalBufferedSize);
+  }
+  else
+  {
+    // AV encoding에 gap 이 있는 경우로 판단함.
+    // 현재 buffering된 total size 만큼 차감하여 buffered data를 계산하기 위함.
+    self->m_bufferedBytesCorrection = totalBufferedSize;
+  }
+}
+
+void GenericPipeline::videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  g_print("[GST_SIGNAL] ------------- video underrun ------------\n");
+  correctBufferedBytesSpi(self); // <-- TODO : Check...!!!!
+}
+
+void GenericPipeline::audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  g_print("[GST_SIGNAL] ------------- audio underrun ------------\n");
+  correctBufferedBytesSpi(self); // <-- TODO : Check...!!!!
+}
+
+void GenericPipeline::registerUnderrunSignalHandlerSpi(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. LMF Player Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return;
+  }
+
+  if ((self->m_pipeHandle) &&
+  (self->m_gstPipelineState != self->StoppedState))
+  {
+    GstElement *pVideosink = NULL;
+    GstElement *pAudiosink = NULL;
+
+    /* register video/audio-underrun handler */
+    g_object_get (G_OBJECT (self->m_pipeHandle), "video-sink", &pVideosink, NULL);
+    if (pVideosink != NULL)
+    {
+      g_signal_connect(pVideosink, "video-underrun", G_CALLBACK(videoDecodeUnderrunCbSpi), self); // <-- TODO : Check...!!!!
+      gst_object_unref(pVideosink);
+    }
+    else
+    {
+      g_print("[%s:%d] couldn't find VIDEOSINK \n", __FUNCTION__, __LINE__);
+    }
+
+    g_object_get (G_OBJECT (self->m_pipeHandle), "audio-sink", &pAudiosink, NULL);
+    if (pAudiosink != NULL)
+    {
+      g_signal_connect(pAudiosink, "audio-underrun", G_CALLBACK(audioDecodeUnderrunCbSpi), self); // <-- TODO : Check...!!!!
+      gst_object_unref(pAudiosink);
+    }
+    else
+    {
+      g_print("[%s:%d] couldn't find AUDIOSINK \n", __FUNCTION__, __LINE__);
+    }
+
+  }
+  else
+  {
+  g_print("[%s] Player is not ready\n", __FUNCTION__);
+  }
+
+  g_print("[%s:%d] finished!\n", __FUNCTION__, __LINE__);
+}
+
+void GenericPipeline::handleStateMsgPauseSpi_pre(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  
+  getStreamsInfoSpi(self); /// genericpipeline only...  // <-- TODO : Check...!!!!
+  std::cout << "[BUS][P2] Update Video Info & Register Unerrun Cb " << endl;
+  updateVideoInfoSpi(self);  // <-- TODO : Check...!!!!
+  registerUnderrunSignalHandlerSpi(self); // <-- TODO : Check...!!!!
+}
+gboolean GenericPipeline::checkTimeToDecodeSpi(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  
+  return true;
+}
 /*
 * set gstreamer debug LOG level.
 */

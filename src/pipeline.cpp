@@ -145,7 +145,42 @@ gboolean Pipeline::play (int rate)
 gboolean Pipeline::unload ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  GstStateChangeReturn retVal = GST_STATE_CHANGE_SUCCESS;
+  
   stop ();
+  informationMonitorStop();
+  disconnectGstBusCallback();
+
+  if ((m_pipeHandle != NULL) && (GST_IS_ELEMENT(m_pipeHandle)))
+  {
+    g_print("gst_element_set_state :  GST_STATE_NULL \n");
+
+    retVal = gst_element_set_state (m_pipeHandle, GST_STATE_NULL);
+    g_print("******** set_state: %s\n", gst_element_state_change_return_get_name(retVal));
+
+    retVal = gst_element_get_state (m_pipeHandle, NULL, NULL, 500 * GST_MSECOND);
+    g_print("******** get_state: %s\n", gst_element_state_change_return_get_name(retVal));
+
+    g_print("gst_object_unref :  pPipeContainerHandle->player %p \n", m_pipeHandle);
+    gst_object_unref( GST_OBJECT(m_pipeHandle) );
+  }
+  else
+  {
+    g_print("%s pPipeContainerHandle->player already uninitialized!!!! \n", __FUNCTION__);
+  }
+  //TODO if(!pPipeContainerHandle->bUsePlaybin)
+  {
+    //STATIC_COMM_CheckRefCount(pPipeContainerHandle->ch); // TODO: changbok.
+  }
+  m_bPlaybackStopped = TRUE;
+  //BASIC_PLYR_CTRL_SetPlayerHandle(pPipeContainerHandle, NULL); //modified.
+  m_pipeHandle = NULL;
+
+  //BASIC_PLYR_CTRL_ResetPlaybackInfoPost(pPipeContainerHandle); // TODO: for pending set..
+
+  /* clear stream type informations */
+  g_print("[L]%s\r\n", __FUNCTION__);
+
   return true;
 }
 
@@ -175,14 +210,45 @@ gboolean Pipeline::stop ()
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
   if (m_pipeHandle) {
     //stopping (renderer if existed.) here.
+    GstBus     *pBus = NULL;
+    GstState curState = GST_STATE_NULL;
+
+    pBus = gst_element_get_bus(m_pipeHandle);
+    if (gst_element_get_state(m_pipeHandle, &curState, NULL, 0) != GST_STATE_CHANGE_FAILURE)
+    {
+      if (curState > GST_STATE_READY)
+      {
+        GstMessage *pMsg = NULL;
+        g_print("%s stopping pipeline \r\n",__FUNCTION__);
+        gst_element_set_state(m_pipeHandle, GST_STATE_READY);
+
+        /* 남은 state-change messages 들을 전부 처리한다.
+        * 이제 모든 것들이 정리 됨. ( NULL로 state를 전해서 flush 하기 전에 처리) */
+        g_print("%s processing pending state-change messages \r\n",__FUNCTION__);
+        while ((pMsg = gst_bus_poll(pBus, GST_MESSAGE_STATE_CHANGED, 0)))
+        {
+          gst_bus_async_signal_func(pBus, pMsg, NULL);
+          gst_message_unref(pMsg);
+        }
+      }
+    }
+    /* bus내의 message들을 drop 하도록 설정한다.
+    * play 시작시에 bus message를 다시 설정 할 것임.
+    */
+    gst_bus_set_flushing(pBus, TRUE);
+    gst_object_unref(pBus);
 
     gst_element_set_state (m_pipeHandle, GST_STATE_NULL);
 
     m_currentPosition = 0;      //update position quickly.
-    State
-    oldState = m_gstPipelineState;
+    State oldState = m_gstPipelineState;
     m_pendingState = m_gstPipelineState = StoppedState;
-
+    m_currentPosition = 0;
+    m_BufBeginSec = 0;
+    m_BufEndSec = 0;
+    m_BufRemainSec = 0;
+    m_bufferedByte =0;
+    m_bIsBufferFull = FALSE;
     //finish something like video HW etc..
 
     //gstreamer will not emit bus messages any more
@@ -216,6 +282,14 @@ gboolean Pipeline::seek (gint64 ms)
   }
 
   return false;
+}
+
+Pipeline::State Pipeline::getPlayerState(){
+  return m_playertState;
+}
+
+void Pipeline::setPlayerState(Pipeline::State state){
+  m_playertState = state;
 }
 
 gboolean Pipeline::isSeekable ()
@@ -473,11 +547,30 @@ Options::bsp_t Pipeline::getOptionsHandler ()
 void
 Pipeline::pipelineEventNotify (gpointer data, MEDIA_CB_MSG_T msg)
 {
+  g_print("event notify !!! %d \r\n", msg);
 
-
-
+  //TODO connect.. playeventlistener
 }
-
+/**
+ * @f sendDuration
+ * update uMediaServer with pipeline duration
+ */
+bool Pipeline::sendDuration(gint64 duration)
+{
+  g_print("Sending duration -> %lld.",(unsigned long long)duration);
+  //TODO connect.. playeventlistener
+  return true;
+}
+/**
+ * @f sendPositionUpdate
+ * update uMediaServer with pipeline position state
+ */
+bool Pipeline::sendPositionUpdate(gint64 currPosition)
+{
+  g_print("Sending position update -> currPosition: %lld.",(unsigned long long)currPosition);
+  //TODO connect.. playeventlistener 
+  return true;
+}
 
 void
 Pipeline::checkSupported (gpointer data)
@@ -490,16 +583,16 @@ Pipeline::checkSupported (gpointer data)
     return;
   }
 #if 0                           //TODO::
-  if (((pPlayerHandle->sourceInfo).codec >> 8) ==
+  if (((self->m_source_codec >> 8) ==
       (MEDIA_VIDEO_NOT_SUPPORTED >> 8)) {
-    LMF_DBG_PRINT ("[BUS][%s:%d] Codec NOT Supported\n", __FUNCTION__,
+    g_print ("[BUS][%s:%d] Codec NOT Supported\n", __FUNCTION__,
                    __LINE__);
-    pPlayerHandle->bSendNotSupportedVideoMessageAtPlayState = true;
-    m_bSendNotSupportedAudioMessageAtPlayState = true;
-    pPlayerHandle->bPendingNotSupportedVideoMessage = false;
-    m_bPendingNotSupportedAudioMessage = false;
+    self->m_bSendNotSupportedVideoMessageAtPlayState = true;
+    self->m_bSendNotSupportedAudioMessageAtPlayState = true;
+    self->m_bPendingNotSupportedVideoMessage = false;
+    self->m_bPendingNotSupportedAudioMessage = false;
 
-    LMF_PLYR_ProcessNotSupported (pPlayerHandle->ch);
+    self->processNotSupported (self);
   }
 #endif
 }
@@ -850,6 +943,51 @@ Pipeline::handleBusTag (gpointer data, GstMessage * pMessage)
   checkSupported (self);
 }
 
+gboolean Pipeline::isSeekableMedia(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  GstQuery *pQuery = NULL;
+  gboolean bRetVal = 0;
+
+  if (self == NULL)
+  {
+    g_print("[BUS][%s:%d] Error. pipeline Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return FALSE;
+  }
+
+  // check for seekable query.
+  pQuery = gst_query_new_seeking (GST_FORMAT_TIME);
+  if (gst_element_query (self->m_pipeHandle, pQuery))
+  {
+    gst_query_parse_seeking (pQuery, NULL, &bRetVal, NULL, NULL);
+    g_print("[BUS]seeking query says the stream is%s seekable \r\n", (bRetVal)?"":" not");
+  }
+  else
+  {
+    g_print("[BUS]seeking query failed \r\n");
+    bRetVal = 1;
+  }
+  gst_query_unref(pQuery);
+
+  if(bRetVal)
+    return TRUE;
+  else
+    return FALSE;
+}
+
+gboolean Pipeline::checkPendingEOS(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+
+  if(self->m_bPendingEOS == TRUE)
+  {
+    g_print("[BUS EOS][%s:%d] send MEDIA_CB_MSG_PLAYEND. \n", __FUNCTION__, __LINE__);
+    self->pipelineEventNotify(self, MEDIA_CB_MSG_PLAYEND);
+    return TRUE;
+  }
+  return FALSE;
+}
+
 void
 Pipeline::handleStateMsgPlay (gpointer data)
 {
@@ -882,13 +1020,13 @@ Pipeline::handleStateMsgPlay (gpointer data)
     }
 
     if (self->m_bPlayStatePreProcessingDone == false) {
-#if 0                           //TDODO.. play excetion handling must add. - 기존 UI에서 대응하지 못하여 noti timing을 이동. 5.0에서 clear 필요.
-      if (_LMF_PLAYBIN2_checkPendingEOS (pPlayerHandle) == true) {
-        LMF_DBG_PRINT ("[BUS][CB] processed pending EOS, quick return. !!! \n");
+                         //TDODO.. play excetion handling must add. - 기존 UI에서 대응하지 못하여 noti timing을 이동. 5.0에서 clear 필요.
+      if (self->checkPendingEOS (self) == true) {
+        g_print ("[BUS][CB] processed pending EOS, quick return. !!! \n");
         return;
       }
-
-      if (LMF_PLAYBIN2_CheckPendingMultiTrackSetting (pPlayerHandle) == false) {
+#if 0  
+      if (_PLAYBIN2_CheckPendingMultiTrackSetting (self) == false) {
         std::cout << "[BUS][CB]error set pending_multi_track_setting!!! " <<
                   endl;
       }
@@ -897,12 +1035,12 @@ Pipeline::handleStateMsgPlay (gpointer data)
 
 #if 0                           //TDODO.. play excetion handling must add. - 기존 UI에서 대응하지 못하여 noti timing을 이동. 5.0에서 clear 필요.
       // started time에 not supported도 보낸다. UI에서 play start msg 이후에 CB 받을 수 있다는 요청에 대응.
-      if (_LMF_PLYR_BUS_CheckPendingNotSupportedAudioMessage (pPlayerHandle) ==
+      if (_BUS_CheckPendingNotSupportedAudioMessage (pPlayerHandle) ==
           false) {
         std::cout << "[BUS][CB]error send pending_not_support_message!!!" <<
                   endl;
       }
-      if (_LMF_PLYR_BUS_CheckPendingAdditionalVideoMessage (pPlayerHandle) ==
+      if (_BUS_CheckPendingAdditionalVideoMessage (pPlayerHandle) ==
           false) {
         std::cout << "[BUS][CB]error send PendingAdditionalVideoMessage!!!" <<
                   endl;
@@ -910,10 +1048,10 @@ Pipeline::handleStateMsgPlay (gpointer data)
 #endif
     } else {
       std::cout <<
-                "[BUS]LMF_PLAYBIN2_CheckPendingMultiTrackSetting already done!" <<
+                "[BUS] _CheckPendingMultiTrackSetting( -> m_bPlayStatePreProcessingDone ) already done!" <<
                 endl;
     }
-    if (isSeekable (self)) {
+    if (self->isSeekable (self)) {
       //TODO LMF_PLYR_ApplyPendingSeek(pPlayerHandle->ch);
     } else {
       self->stateChanged (self->m_gstPipelineState);
@@ -938,26 +1076,24 @@ Pipeline::handleStateMsgPause (gpointer data, GstState oldState)
 
   std::cout << "[BUS] handleStateMsgPause   " << endl;
 
-  //if (!LMF_PLAYBIN2_IsUsing(pPlayerHandle))
-  //      LMF_STATIC_COMM_CheckTimeToDecode(pPlayerHandle->ch); // TODO : only custom pipeline.
-
+  self->checkTimeToDecodeSpi(self); //only custom pipeline.
   self->m_gstPipelineState = PausedState;
 
   //check for seekable
   if (oldState == GST_STATE_READY) {
     std::cout << "[BUS][CB - GST_STATE_PAUSED] oldstate - GST_STATE_READY";
-
-    //TODO LMF_PLAYBIN2_GetStreamsInfo(pPlayerHandle); /// genericpipeline only...
-
     std::cout << "[BUS][%s]update duration at PAUSE STATS " << endl;
-    //TODO _LMF_PLYR_BUS_GetStreamLength(pPlayerHandle);
-
+    self->getStreamLength (self);
+/* moved. -> handleStateMsgPauseSpi_pre
+    self->getStreamsInfoSpi(self); /// genericpipeline only...
     if (self->m_playbinVersion != -1)   /// genericpipeline only...
     {
       std::cout << "[BUS][P2] Update Video Info & Register Unerrun Cb " << endl;
-      //TODO LMF_PLAYBIN2_UpdateVideoInfo(self);
-      //TODO LMF_PLAYBIN2_RegisterUnderrunSignalHandler(self);
+      _UpdateVideoInfo(self);
+      _RegisterUnderrunSignalHandler(self);
     }
+*/
+    self->handleStateMsgPauseSpi_pre(self);
 
     if (self->m_seekable == FALSE) {
       /*
@@ -965,7 +1101,7 @@ Pipeline::handleStateMsgPause (gpointer data, GstState oldState)
          flash format에서 header에 index data가 없는 경우 push based(PLEX, etc...) 에서 seek 수행이 안됨. seek 시도 시 beginning position으로 돌아감.
          문제 case의 경우 seekable = FALSE로 정보 전달하여 Smartshare UI에서 "This function is not available" popup 띄우도록 처리함
        */
-      if ((self->m_source_format == MEDIA_FORMAT_FLV) && (self->isSeekable (self) == FALSE))    //only FLV case.
+      if ((self->m_source_format == MEDIA_FORMAT_FLV) && (self->isSeekableMedia (self) == FALSE))    //only FLV case.
         self->setSeekable (self, FALSE);
       else
         self->setSeekable (self, TRUE);
@@ -1119,6 +1255,61 @@ Pipeline::handleBusEOS (gpointer data)
   }
 }
 
+void Pipeline::handlePlayerMsg_AsyncDone(gpointer data)
+{
+  Pipeline *
+  self = reinterpret_cast < Pipeline * >(data);
+  GstFormat	format = GST_FORMAT_TIME;
+  gint64		position = 0;
+  gint64		newSeekTime = 0;
+
+  g_print("[BUS ASYNCDONE][%s:%d]>>>>>>> GST_MESSAGE_ASYNC_DONE (PAUSE DONE or SEEK DONE) \n", __FUNCTION__, __LINE__);
+#if (GST_VERSION_MAJOR >= 1)
+  if (gst_element_query_position(self->m_pipeHandle, format, &position))
+#else
+  if (gst_element_query_position(self->m_pipeHandle, &format, &position))
+#endif
+  {
+    self->m_currentPosition = position;
+
+    if (self->m_LastSeekPTS == -1) // seek done case.
+    {
+      self->m_LastSeekPTS = GST_TIME_AS_SECONDS(position);
+      g_print("[BUS ASYNCDONE][%s:%d] LastSeekPTS(%d)\n", __FUNCTION__, __LINE__, self->m_LastSeekPTS);
+    }
+  }
+
+  if (self->m_bIsSeeking)
+  {
+    /* raise cb msg here */
+    self->m_bIsSeeking = FALSE;
+    g_print("[BUS ASYNCDONE] cur state=%d\n", self->m_gstPipelineState);
+    self->pipelineEventNotify(self, MEDIA_CB_MSG_SEEK_DONE);
+#if 0 // TODO.. seek mutex handling.
+    /* When a seek has finished, set the playing state again */
+    g_mutex_lock (self->m_seek_mutex);
+
+    self->m_seek_req_time = gst_clock_get_internal_time (self->m_clock);
+    newSeekTime = self->m_seek_time;
+    self->m_seek_time = -1;
+
+    g_mutex_unlock (self->m_seek_mutex);
+#endif
+    if (newSeekTime >= 0)
+    {
+      g_print ("[BUS] Have an old seek to schedule, doing it now \r\n");
+      self->m_bIsSeeking = TRUE;
+      //TODO //if(self->seek(self, (UINT32)(newSeekTime), 0, NULL)==FALSE)
+      {
+        g_print ("[BUS ASYNCDONE][%s:%d] Seek fail!!! \r\n", __FUNCTION__,__LINE__);
+        self->m_bIsSeeking = FALSE;
+      }
+    }
+  }
+
+  return;
+}
+
 gboolean Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
 {
   Pipeline *
@@ -1206,7 +1397,7 @@ gboolean Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
 #if (GST_VERSION_MAJOR >= 0) &&  (GST_VERSION_MINOR >= 10) && (GST_VERSION_MICRO >= 13)
   case GST_MESSAGE_ASYNC_DONE:
   {
-    // TODO _LMF_PLYR_BUS_PlayerMsgAsyncDone(pPlayerHandle);
+    self->handlePlayerMsg_AsyncDone(self);
     break;
   }
   case GST_MESSAGE_ASYNC_START:      /* next */
@@ -1223,7 +1414,7 @@ gboolean Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
     int
     progress = 0;
     gst_message_parse_buffering (pMessage, &progress);
-    //TODO notify bufferingProgressChanged(progress);
+    //TODO notify bufferingProgressChanged(progress); // <-- new added !
   }
   break;
   case GST_MESSAGE_STATE_DIRTY:      /* next */
@@ -1333,6 +1524,17 @@ Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
   return true;
 }
 
+void Pipeline::updateTags(gpointer data, GstTagList *pTagList)
+{
+  Pipeline *
+  self = reinterpret_cast < Pipeline * >(data);
+  if(pTagList == NULL)
+  return;
+
+  gst_tag_list_foreach(pTagList, self->collectTags, self);
+  gst_tag_list_free(pTagList);
+}
+
 gint64 Pipeline::getStreamLength (gpointer data)
 {
   Pipeline *
@@ -1391,7 +1593,7 @@ Pipeline::handleBusDuration (gpointer data, GstMessage * pMessage)
   gst_message_parse_duration (pMessage, &fmt, &duration);
   if ((duration >= 0) && (fmt == GST_FORMAT_BYTES)) {
     // Sometimes GST_MESSAGE_DURATION comes twice, once with -1; (http, mp3 play)
-    //DBG_PRINT("[BUS] filesize: %"G_GINT64_FORMAT" (%s)\n", duration, gst_format_get_name(fmt));
+    //g_print("[BUS] filesize: %"G_GINT64_FORMAT" (%s)\n", duration, gst_format_get_name(fmt));
     std::cout << "[BUS] filesize:" << duration << "G_GINT64_FORMAT:" <<
               gst_format_get_name (fmt) << endl;
     self->m_source_dataSize = (guint64) duration;
@@ -1466,7 +1668,7 @@ Pipeline::gstBusCallbackHandle (GstBus * pBus, GstMessage * pMessage,
                                 gpointer data)
 {
   Pipeline *self = reinterpret_cast < Pipeline * >(data);
-  //TODO: change PERI LOG print.
+  //TODO: change to PERI LOG print.
   std::cout << "Pipeline] bus callback msg - element:" <<
             GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage)) << " | name:" <<
             gst_message_type_get_name (GST_MESSAGE_TYPE (pMessage)) << endl;
@@ -1513,7 +1715,28 @@ bool Pipeline::connectGstBusCallback ()
 
   return true;
 }
+gboolean Pipeline::disconnectGstBusCallback()
+{
+  if ((m_pipeHandle == NULL) || (GST_IS_ELEMENT(m_pipeHandle) == FALSE))
+  {
+    g_print("[%s:%d] Error. Gstreamer Player Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return FALSE;
+  }
+  if (m_busHandler)
+  {
+    /* callback으로 message 나오지 않도록, drop all bus messages. */
+    gst_bus_set_flushing(m_busHandler, TRUE);
+    if (m_sigBusAsync)
+    {
+      g_signal_handler_disconnect(m_busHandler, m_sigBusAsync);
+    }
 
+    gst_bus_remove_signal_watch(m_busHandler);
+    gst_object_unref(m_busHandler);
+    m_busHandler = NULL;
+  }
+  return TRUE;
+}
 //end buscallback handle
 
 //start seek, trick
@@ -1640,7 +1863,11 @@ gboolean Pipeline::updatePlayPosition(gpointer data){
       std::cout <<"now seeking.. skip update SessionPlayPosition  " << endl;
     }
     else
+    {
       self->m_currentPosition = pos;
+      gint64 currentPositionInMs = (gint64)(pos / GST_MSECOND);
+      self->sendPositionUpdate(currentPositionInMs);
+    }
 
   }
   else
@@ -1736,11 +1963,11 @@ gboolean Pipeline::updateDuration(gpointer data){
     {
       //TODO _UpdateBitrateInfo(self);
     }
-
     /* >>> pPlayerHandle->sourceInfo.targetBitrateBps 에 값 세팅 */
     if (self->m_duration > 0)
     {
       //EmitDurationLogToBSI(self->m_duration / GST_MSECOND, FALSE);
+      self->sendDuration((self->m_duration)/GST_MSECOND); // send to UMS.. // convert to MSEC.
       return FALSE;
     }
     else
@@ -1771,7 +1998,66 @@ gboolean Pipeline::updateDuration(gpointer data){
     }
     return TRUE; // continue timer //
   }
-  return FALSE; 	// update once
+  return FALSE;   // update once
+}
+gboolean Pipeline::setBufferProgress(gpointer data, int progress, int bufferedSec)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+
+  if (self == NULL)
+  return false;
+
+  g_print("[%s:%d] progress: %d, bufferedSec: %d (m_gstPipelineState=%d, m_playertState=%d)\n",
+  __FUNCTION__, __LINE__,
+  progress,
+  bufferedSec,
+  self->m_gstPipelineState, self->m_playertState);
+
+  if ((self->m_playertState == PlayingState) && self->m_pendingState == PausedState)
+  {
+    if ((progress == -1) || (progress >= self->prerollPercent) ||
+    (bufferedSec == -1) || (bufferedSec >= self->prerollSecond))
+    {
+      g_print("[%s:%d] call Playes by buffer controller. \n", __FUNCTION__, __LINE__);
+      // 3D type setting
+      if(self->m_source_format == MEDIA_FORMAT_ASF)
+      {
+        g_print("[%s:%d] ASF container skip setting InterleavingType.\n", __FUNCTION__, __LINE__);
+      }
+      else
+        self->setInterleavingTypeSpi(self,NULL, 0, NULL);
+      //TODO LMF_PLYR_CTRL_Play(pPlayerHandle);
+    }
+  }
+}
+
+gboolean Pipeline::updateAsLive(gpointer data, gint *pPercent)
+{
+  gint bufferedPercent = 0;
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  if (self == NULL)
+  {
+    g_print("[%s:%d] handle is NULL!!!!!!\n", __FUNCTION__, __LINE__);
+    return false;
+  }
+
+  bufferedPercent = 100;
+
+  self->m_BufBeginSec  = 0;
+  self->m_BufRemainSec = -1;
+  self->m_BufEndSec  = 0;
+  self->m_BufPercent  = bufferedPercent;
+
+  if (pPercent != NULL)
+    *pPercent = bufferedPercent;
+
+  if (!(self->m_bPlaybackStarted)) //now only for prerolling
+  {
+    // player control according to the buffer status
+    self->setBufferProgress(self, bufferedPercent, (int)self->m_BufRemainSec);
+  }
+  return true;
+
 }
 
 gboolean Pipeline::updateBufferingInfoSub(gpointer data, GstMessage *pMessage, gint *pPercent){
@@ -1789,22 +2075,22 @@ gboolean Pipeline::updateBufferingInfoSub(gpointer data, GstMessage *pMessage, g
   guint64 adecBufferedSize = 0;
   gint64 correctionSize = 0;
 
-  gint inPercent	= 0; // fix 20110921
-  gint avgIn 		= 0;
-  gint avgOut 	= 0;
-  gint bitrate	= 0;
-  gint durSec		= 0;
-  gint decodedSec	= 0;
-  gint remainSec 	= 0;
-  gint endSec 	= 0;
+  gint inPercent  = 0; // fix 20110921
+  gint avgIn     = 0;
+  gint avgOut   = 0;
+  gint bitrate  = 0;
+  gint durSec    = 0;
+  gint decodedSec  = 0;
+  gint remainSec   = 0;
+  gint endSec   = 0;
 
   if ((self == NULL) || (self->m_pipeHandle== NULL))
   {
     g_print("[TIMER][%s:%d] handle is NULL!!!!!!\n", __FUNCTION__, __LINE__);
     return FALSE;
   }
-  bitrate 		= self->m_AvgBitrate;
-  correctionSize 	= self->m_bufferedBytesCorrection;
+  bitrate     = self->m_AvgBitrate;
+  correctionSize   = self->m_bufferedBytesCorrection;
   if (pMessage == NULL)
   {
     pQuery = gst_query_new_buffering(GST_FORMAT_BYTES);
@@ -1817,11 +2103,11 @@ gboolean Pipeline::updateBufferingInfoSub(gpointer data, GstMessage *pMessage, g
       /* if query is failed because it's live streaming: */
       if (self->m_bLiveStreaming)
       {
-      	g_print("[TIMER][%s:%d] Live Streaming Case (query failed)\n", __FUNCTION__, __LINE__);
+        g_print("[TIMER][%s:%d] Live Streaming Case (query failed)\n", __FUNCTION__, __LINE__);
 
-      	//TODO _UpdateAsLive(pPlayerHandle, pPercent);
-      	self->m_source_bIsValidDuration = FALSE;
-      	return TRUE;
+        self->updateAsLive(self, pPercent);
+        self->m_source_bIsValidDuration = FALSE;
+        return TRUE;
       }
       return TRUE;
     }
@@ -1846,7 +2132,7 @@ gboolean Pipeline::updateBufferingInfoSub(gpointer data, GstMessage *pMessage, g
   (self->m_bAsfLive && bitrate == 0)) // asf live 인데 bitrate 정보가 잘못된 경우
   {
     g_print("[TIMER][%s:%d] Live Streaming Case\n", __FUNCTION__, __LINE__);
-    //TODO _UpdateAsLive(pPlayerHandle, pPercent);
+    self->updateAsLive(self, pPercent);
 
     return TRUE;
   }
@@ -1864,119 +2150,119 @@ gboolean Pipeline::updateBufferingInfoSub(gpointer data, GstMessage *pMessage, g
 
   if (bufferedSize == -1)  // EOS
   {
-  remainSec 		= -1;
-  endSec 			= durSec;
+  remainSec     = -1;
+  endSec       = durSec;
   bufferedPercent = 100;
   }
   else  // bufferedSize 값은 decoder 제외한 버퍼의 데이터 사이즈임. (in bytes)
   {
   if (bitrate == 0)
   {
-  remainSec 		= -1;
-  endSec 			= durSec;
+  remainSec     = -1;
+  endSec       = durSec;
   bufferedPercent = 100;
   }
   else
   {
-    //TODO _GetUndecodedSize(self, &vdecBufferedSize, &adecBufferedSize);
+    self->getUndecodedSizeSpi(self, &vdecBufferedSize, &adecBufferedSize);
 
     bufferedTotal = bufferedSize + vdecBufferedSize + adecBufferedSize;
     bufferedTotal -= correctionSize;
     if (bufferedTotal < 0)
-    	bufferedTotal = 0;
+      bufferedTotal = 0;
 
-    remainSec 	= (gint)((float) bufferedTotal * BITS_PER_BYTE / bitrate);
-    endSec 		= decodedSec + remainSec;
+    remainSec   = (gint)((float) bufferedTotal * BITS_PER_BYTE / bitrate);
+    endSec     = decodedSec + remainSec;
 
     if (decodedSec > durSec)
     {
-    	g_print("[TIMER][%s:%d] decodedSec(%d) > durSec(%d): warning! \n", __FUNCTION__, __LINE__, decodedSec, durSec);
+      g_print("[TIMER][%s:%d] decodedSec(%d) > durSec(%d): warning! \n", __FUNCTION__, __LINE__, decodedSec, durSec);
     }
     else  // durSec seems valid
     {
-    	if (endSec > durSec)	// EOS
-    	{
-    		remainSec = -1;
-    		endSec = durSec;
-    	}
+      if (endSec > durSec)  // EOS
+      {
+        remainSec = -1;
+        endSec = durSec;
+      }
     }
 
     bufferedPercent = (gint)( ceil ((float)bufferedTotal * 100 / MEDIAPIPE_BUFFER_SIZE));
     if (bufferedPercent > 100)
-    	bufferedPercent = 100;
+      bufferedPercent = 100;
 
     pQuery = gst_query_new_buffering(GST_FORMAT_PERCENT);
     if (gst_element_query(self->m_pipeHandle, pQuery) == FALSE)
     {
-    	gst_query_unref(pQuery);
-    	g_print("[TIMER][%s:%d] gst_element_query failed!\n", __FUNCTION__, __LINE__);
+      gst_query_unref(pQuery);
+      g_print("[TIMER][%s:%d] gst_element_query failed!\n", __FUNCTION__, __LINE__);
     }
     else
     {
-    	gst_query_parse_buffering_percent(pQuery, NULL, &inPercent);
-    	gst_query_unref(pQuery);
+      gst_query_parse_buffering_percent(pQuery, NULL, &inPercent);
+      gst_query_unref(pQuery);
 
-    	if (inPercent == 100) // BUFFER_FULL
-    	{
-    		bufferedPercent = 100;
-    		self->m_bIsBufferFull = TRUE;
-    	}
-    	else
-    	{
-    		self->m_bIsBufferFull = FALSE;
-    	}
+      if (inPercent == 100) // BUFFER_FULL
+      {
+        bufferedPercent = 100;
+        self->m_bIsBufferFull = TRUE;
+      }
+      else
+      {
+        self->m_bIsBufferFull = FALSE;
+      }
     }
   }
   }
 
   self->m_BufRemainSec = remainSec;
-  self->m_BufEndSec 	= endSec;
-  self->m_BufPercent 	= bufferedPercent;
+  self->m_BufEndSec   = endSec;
+  self->m_BufPercent   = bufferedPercent;
 
   if (pPercent != NULL)
   *pPercent = bufferedPercent;
 
   g_print("[TIMER]%d(%s)(Total:%"G_GINT64_FORMAT" = buffered(%"G_GINT64_FORMAT")+v(%"G_GUINT64_FORMAT")+a(%"G_GUINT64_FORMAT")-cor(%"G_GINT64_FORMAT"))(%"G_GINT32_FORMAT")\n",
-  													(gint32)self->m_BufPercent,
-  													(self->m_bIsBufferFull == TRUE)?"O":"X",
-  													(gint64)bufferedTotal,
-  													(gint64)bufferedSize,
-  													(guint64)vdecBufferedSize,
-  													(guint64)adecBufferedSize,
-  													(gint64)correctionSize,
-  													(gint32)inPercent);
+                            (gint32)self->m_BufPercent,
+                            (self->m_bIsBufferFull == TRUE)?"O":"X",
+                            (gint64)bufferedTotal,
+                            (gint64)bufferedSize,
+                            (guint64)vdecBufferedSize,
+                            (guint64)adecBufferedSize,
+                            (gint64)correctionSize,
+                            (gint32)inPercent);
 
   g_print("\t\tavgIn/Out[%d:%d] dur/begine/end/remainedSec[## %d:%d:%d:%d ##] AvgBR/MaxBR[%d:%d]\n",
-  													(gint32)avgIn,
-  													(gint32)avgOut,
-  													(gint32)durSec,
-  													(gint32)self->m_BufBeginSec,
-  													(gint32)self->m_BufEndSec,
-  													(gint32)self->m_BufRemainSec,
-  													(gint32)self->m_AvgBitrate,
-  													(gint32)self->m_MaxBitrate);
+                            (gint32)avgIn,
+                            (gint32)avgOut,
+                            (gint32)durSec,
+                            (gint32)self->m_BufBeginSec,
+                            (gint32)self->m_BufEndSec,
+                            (gint32)self->m_BufRemainSec,
+                            (gint32)self->m_AvgBitrate,
+                            (gint32)self->m_MaxBitrate);
 
 #if 0 //TODO: for prerolling func...
   // now only for prerolling, playbin2 case
   if (self->bUsePlaybin2)
   {
-    if (!self->m_bPlaybackStarted)	// pre-buffering
+    if (!self->m_bPlaybackStarted)  // pre-buffering
     {
       // player control according to the buffer status
       _SetBufferProgress(self, self->m_BufPercent, (int)self->m_BufRemainSec);
     }
-    else	// pause <-> resume : buffering control (except live case)
+    else  // pause <-> resume : buffering control (except live case)
     {
       _CheckBufferingState(self, self->m_BufPercent, (int)self->m_BufRemainSec);
     }
 
       // ToDo : if req option - need to buffer control == TRUE
-      //		if curr state == buffering pause state && remain sec >= 10
-      //			play the player and send the msg to application
-      		// when send the msg cb, need to check the pause state or buffering pause state
-      		// user can press the pause key after buffering pause before send the pause msg cb.
-      //		else if curr state	== play state && remain sec < 2
-      //			pause the player and send the msg to application
+      //    if curr state == buffering pause state && remain sec >= 10
+      //      play the player and send the msg to application
+          // when send the msg cb, need to check the pause state or buffering pause state
+          // user can press the pause key after buffering pause before send the pause msg cb.
+      //    else if curr state  == play state && remain sec < 2
+      //      pause the player and send the msg to application
   }
 #endif
   return TRUE;
@@ -2005,6 +2291,21 @@ gboolean Pipeline::updateBufferingInfo(gpointer data){
   retVal = self->updateBufferingInfoSub(self, NULL, NULL);
 
   return retVal;
+}
+
+gboolean Pipeline::informationMonitorStop()
+{
+  if (m_positionTimerId != 0)
+    g_source_remove(m_positionTimerId);
+  m_positionTimerId = 0;
+
+  if (m_durationTimerId != 0)
+    g_source_remove(m_durationTimerId);
+  m_durationTimerId = 0;
+
+  if (m_bufferingTimerId != 0)
+    g_source_remove(m_bufferingTimerId);
+  m_bufferingTimerId = 0;
 }
 
 gboolean Pipeline::informationMonitorStart(guint32 timeInterval)

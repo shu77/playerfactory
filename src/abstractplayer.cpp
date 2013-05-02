@@ -48,7 +48,7 @@ gboolean AbstractPlayer::play (int rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
   Pipeline::State newState = Pipeline::PlayingState;
-  Pipeline::State oldState = m_playertState;
+  Pipeline::State oldState = getPlayerState();
 
   gboolean
   result = false;
@@ -65,11 +65,12 @@ gboolean AbstractPlayer::play (int rate)
     newState = Pipeline::StoppedState;
   }
 
-  m_playertState = newState;
-  if (m_playertState != oldState) {
+  //m_playertState = newState;
+  setPlayerState(newState);
+  if (getPlayerState() != oldState) {
     cout << "[AbstractPlayer::play] player state changed (to :" <<
-         m_playertState << ")" << endl;
-    updateState (m_playertState);
+         getPlayerState() << ")" << endl;
+    updateState (getPlayerState());
   }
   return result;
 }
@@ -78,7 +79,7 @@ gboolean AbstractPlayer::pause ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
   Pipeline::State newState = Pipeline::PausedState;
-  Pipeline::State oldState = m_playertState;
+  Pipeline::State oldState = getPlayerState();
   gboolean
   result = false;
 
@@ -97,11 +98,12 @@ gboolean AbstractPlayer::pause ()
     newState = Pipeline::StoppedState;
   }
 
-  m_playertState = newState;
-  if (m_playertState != oldState) {
+  //m_playertState = newState;
+  setPlayerState(newState);
+  if (getPlayerState() != oldState) {
     cout << "[AbstractPlayer::play] player state changed (to :" <<
-         m_playertState << ")" << endl;
-    updateState (m_playertState);
+         getPlayerState() << ")" << endl;
+    updateState (getPlayerState());
   }
   return result;
 }
@@ -127,8 +129,9 @@ gboolean AbstractPlayer::load (const std::string optionString)
 gboolean AbstractPlayer::unload ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
-  if (m_playertState != Pipeline::StoppedState) {
-    m_playertState = Pipeline::StoppedState;
+  if (getPlayerState() != Pipeline::StoppedState) {
+    //m_playertState = Pipeline::StoppedState;
+    setPlayerState(Pipeline::StoppedState);
     return this->unloadSpi ();
   }
   return true;
@@ -209,7 +212,7 @@ AbstractPlayer::errorString () const
 void AbstractPlayer::updateState (Pipeline::State newState)
 {
   //Pipeline::MediaStatus oldStatus = m_mediaStatus;
-  Pipeline::State saveState = m_playertState;
+  Pipeline::State saveState = getPlayerState();
 
   //TODO :: notify upper layer.
 
@@ -225,3 +228,20 @@ bool AbstractPlayer::setGstreamerDebugLevel (guint select, gchar * category,
     pipeline->setGstreamerDebugLevel (select, category, level);
   }
 }
+
+Pipeline::State AbstractPlayer::getPlayerState(){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    return pipeline->getPlayerState();
+  }
+}
+
+void AbstractPlayer::setPlayerState(Pipeline::State state){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    pipeline->setPlayerState(state);
+  }
+}
+

@@ -52,9 +52,12 @@ public:
   //Error error() const;
   GString errorString () const;
 
-  Pipeline::State m_playertState;   /* user input control status */
+  //Pipeline::State m_playertState;   /* user input control status */ //move down pipeline layer.
   gboolean m_bFeedPossible;
   void updateState (Pipeline::State newState);
+  Pipeline::State getPlayerState();
+  void setPlayerState(Pipeline::State state);
+    
   bool setGstreamerDebugLevel (guint select, gchar * category,
                                GstDebugLevel level);
 
