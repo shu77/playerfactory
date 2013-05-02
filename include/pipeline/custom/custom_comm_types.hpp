@@ -1,97 +1,7 @@
-
-
-
 #ifndef CUSTOM_COMM_TYPE_H_
 #define CUSTOM_COMM_TYPE_H_
 
 #include <pipeline/pf_export.hpp>
-
-/*
-  jhtark : appfrwk_common_types.h 에서 발췌
-*/
-
-#ifndef UINT8
-typedef unsigned char __UINT8;
-#define UINT8 __UINT8
-#endif
-
-#ifndef UINT08
-typedef unsigned char __UINT08;
-#define UINT08 __UINT08
-#endif
-
-#ifndef SINT8
-typedef signed char __SINT8;
-#define SINT8 __SINT8
-#endif
-
-#ifndef SINT08
-typedef signed char __SINT08;
-#define SINT08 __SINT08
-#endif
-
-#ifndef CHAR
-typedef char __CHAR;
-#define CHAR __CHAR
-#endif
-
-#ifndef UINT16
-typedef unsigned short __UINT16;
-#define UINT16 __UINT16
-#endif
-
-#ifndef SINT16
-typedef signed short __SINT16;
-#define SINT16 __SINT16
-#endif
-
-#ifndef UINT32
-typedef unsigned int __UINT32;
-#define UINT32 __UINT32
-#endif
-
-#ifndef SINT32
-typedef signed int __SINT32;
-#define SINT32 __SINT32
-#endif
-
-#ifndef BOOLEAN
-typedef unsigned int __BOOLEAN;
-#define BOOLEAN __BOOLEAN
-#endif
-
-#ifndef ULONG
-typedef unsigned long __ULONG;
-#define ULONG __ULONG
-#endif
-
-#ifndef SLONG
-typedef signed long __SLONG;
-#define SLONG __SLONG
-#endif
-
-#ifndef UINT64
-typedef unsigned long long __UINT64;
-#define UINT64 __UINT64
-#endif
-
-#ifndef SINT64
-typedef signed long long __SINT64;
-#define SINT64 __SINT64
-#endif
-
-#ifndef TRUE
-#define TRUE          (1)
-#endif
-
-#ifndef FALSE
-#define FALSE         (0)
-#endif
-
-/*
-  jhtark : appfrwk_openapi_types.h 에서 발췌
-*/
-
 
 /*
   jhtark. for custom player
@@ -99,16 +9,16 @@ typedef signed long long __SINT64;
 typedef struct
 {
   /* to support the seamless play on MTK platform - SSPK, Netflix, HLS. */
-  UINT8 bSeamlessPlay;          // from CP      // default should be FALSE
-  UINT8 bPlaybackDiag;          // information including the following: chunk request / end / index / url / sysTime
-  UINT8 breserved1;             // for memory align
-  UINT8 breserved2;             // for memory align
-  UINT32 maxWidth;              // from CP
-  UINT32 maxHeight;             // from CP
-  UINT32 start_bps;
-  UINT32 max_bps;
-  UINT32 min_bps;
-  UINT32 diagBatchSize;         // size which will be posted th the server at once.
+  guint8 bSeamlessPlay;          // from CP      // default should be FALSE
+  guint8 bPlaybackDiag;          // information including the following: chunk request / end / index / url / sysTime
+  guint8 breserved1;             // for memory align
+  guint8 breserved2;             // for memory align
+  guint32 maxWidth;              // from CP
+  guint32 maxHeight;             // from CP
+  guint32 start_bps;
+  guint32 max_bps;
+  guint32 min_bps;
+  guint32 diagBatchSize;         // size which will be posted th the server at once.
   char postServerURL[2048];     // Server URL which can receive the diagnostics.
 } MEDIA_VIDEO_ADAPTIVE_INFO_T;
 
@@ -260,32 +170,32 @@ typedef struct MEDIA_CUSTOM_CONTENT_INFO
 {
   MEDIA_TRANSPORT_T mediaTransportType;
   MEDIA_CUSTOM_CONTAINER_TYPE_T container;
-  UINT64 size;
-  UINT32 vcodec;                // video codec
-  UINT32 acodec;                // audio codec
+  guint64 size;
+  guint32 vcodec;                // video codec
+  guint32 acodec;                // audio codec
 
   MEDIA_DATA_CHANNEL_T esCh;
 
-  SINT64 ptsToDecode;           // to support seek
-  BOOLEAN pauseAtDecodeTime;
-  BOOLEAN bRestartStreaming;    // when underflow is detected - VUDU
-  BOOLEAN bSeperatedPTS;        // TRUE : pts is sent by parameter (ES case only)
-  BOOLEAN bSecurityVideoPath;   // use SVP path
-  BOOLEAN bNeedData;            //to supprot HTML5 YouTube feed (ES case only)
+  gint64 ptsToDecode;           // to support seek
+  gboolean pauseAtDecodeTime;
+  gboolean bRestartStreaming;    // when underflow is detected - VUDU
+  gboolean bSeperatedPTS;        // TRUE : pts is sent by parameter (ES case only)
+  gboolean bSecurityVideoPath;   // use SVP path
+  gboolean bNeedData;            //to supprot HTML5 YouTube feed (ES case only)
 
-  SINT32 preBufferTime;
+  gint32 preBufferTime;
 
-  BOOLEAN bUseBufferCtrl;       // if it is TRUE, the below time value is meaningful.
-  SINT32 bufferingMinTime;
-  SINT32 bufferingMaxTime;
-  UINT08 bufferMinPercent;
-  UINT08 bufferMaxPercent;
+  gboolean bUseBufferCtrl;       // if it is TRUE, the below time value is meaningful.
+  gint32 bufferingMinTime;
+  gint32 bufferingMaxTime;
+  guint8 bufferMinPercent;
+  guint8 bufferMaxPercent;
 
   MEDIA_VIDEO_DATA_INFO_T videoDataInfo;
   MEDIA_AUDIO_DATA_INFO_T audioDataInfo;
 
-  UINT16 inPort;                /* to support wifi display */
-  UINT32 delayOffset;           /* to support wifi display */
+  guint16 inPort;                /* to support wifi display */
+  guint32 delayOffset;           /* to support wifi display */
 
 #if 0                           /* jhtark - webos refactory - temp [ 변수 정리 필요 ] */
 #ifdef INCLUDE_DRM_MODULE
@@ -295,19 +205,19 @@ typedef struct MEDIA_CUSTOM_CONTENT_INFO
 #endif
 
   HOA_DLNA_INFO_T dlnaInfo;     /* DLNA info (from server to client) */
-  BOOLEAN isDLNA;               /* DLNA transport type */
-  BOOLEAN isDLNA_notSeekableContent;    /* check for DLNA contents seekable */
+  gboolean isDLNA;               /* DLNA transport type */
+  gboolean isDLNA_notSeekableContent;    /* check for DLNA contents seekable */
 #endif
 
   NEDIA_MVPD_INFO_T mvpdOpt;
 
 
-  UINT32 start_bps;
-  UINT32 thumbnailOnPause_Width;                /**< thumbnail size define. for thumbnail on pause status func. */
-  UINT32 thumbnailOnPause_Hight;                /**< thumbnail size define. for thumbnail on pause status func. */
-  BOOLEAN bVdecChannelReserved;               /**< for external VDEC resource info (from DVR) */
-  BOOLEAN bIsTTSEngine;                 /**< for setting H13 adec property> */
-  BOOLEAN bIsNetflix;                   /**< for netflix specific case> */
+  guint32 start_bps;
+  guint32 thumbnailOnPause_Width;                /**< thumbnail size define. for thumbnail on pause status func. */
+  guint32 thumbnailOnPause_Hight;                /**< thumbnail size define. for thumbnail on pause status func. */
+  gboolean bVdecChannelReserved;               /**< for external VDEC resource info (from DVR) */
+  gboolean bIsTTSEngine;                 /**< for setting H13 adec property> */
+  gboolean bIsNetflix;                   /**< for netflix specific case> */
 
 } MEDIA_CUSTOM_CONTENT_INFO_T;
 

@@ -26,6 +26,7 @@
 ******************************************************************************/
 #define LMF_DBG_PRINT
 #define LMF_ERR_PRINT
+#define LMF_BUFFER_PERI_PRINT
 
 /*******************************************************************************
   Local Constant Definitions
@@ -44,14 +45,18 @@ CustomPipeline::CustomPipeline ()
   m_CheckNum = 0;
   /*  demuxer list initiallize    */
   m_stDmxList[0].contentType = MEDIA_CUSTOM_CONTAINER_TS;
-  strcpy (m_stDmxList[0].pElementName, "mpegtsdemux");
+  strcpy (m_stDmxList[0].pElementName, "tsdemux");
   m_stDmxList[1].contentType = MEDIA_CUSTOM_CONTAINER_MCAST_TS;
   strcpy (m_stDmxList[1].pElementName, "mcastdemux");
   m_stDmxList[2].contentType = MEDIA_CUSTOM_CONTAINER_MPEG2PES;
   strcpy (m_stDmxList[2].pElementName, "mpegpsdemux");
   m_stDmxList[3].contentType = 0xFF;
   strcpy (m_stDmxList[3].pElementName, NULL);
-#if 0                           /* jhtark - webos refactory - temp [ 다른 곳에서 pipeline 생성 함  ] */
+  /* multi audio track info initialize */
+  m_audCount = 0;
+  m_audCurrent = 0;
+  m_lastPid = 0;
+#if 0                           /* jhtark - webos refactory - temp [ pipeline is created at other fucntion ] */
   m_pipeHandle = gst_element_factory_make ("playbin2", NULL);
   if (m_pipeHandle) {
     m_playbinVersion = 2;       //playbin2
@@ -88,7 +93,8 @@ CustomPipeline::~CustomPipeline ()
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 }
 
-bool CustomPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
+gboolean
+CustomPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
@@ -96,8 +102,9 @@ bool CustomPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
 }
 
 
-bool CustomPipeline::load (MEDIA_STREAMOPT_T * streamOpt,
-                           MEDIA_FORMAT_T mediaFormatType)
+gboolean
+CustomPipeline::load (MEDIA_STREAMOPT_T * streamOpt,
+                      MEDIA_FORMAT_T mediaFormatType)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
   //this->loadSpi(clipOpt);
@@ -157,10 +164,10 @@ gboolean CustomPipeline::positionSpi(gpointer data, gint64 *pos)
 #else
     if(!gst_element_query_position(self->m_pipeHandle, &queryFormat, &position))
 #endif
-    position = 0;
+      position = 0;
   }
   if (pPlayerName != NULL)
-  g_free(pPlayerName);
+    g_free(pPlayerName);
 
   *pos = position;
   return true;
@@ -191,7 +198,7 @@ CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
 
   MEDIA_STATUS_T retVal = MEDIA_OK;
 
-#if 0                           /* jhtark - webos refactory - temp [ static init 함수로 오는 매개변수 정리 필요  ] */
+#if 0                           /* jhtark - webos refactory - temp [ need to organize NC4.0 'static init' parameter ] */
   LMF_DBG_PRINT ("========================================\n");
   LMF_DBG_PRINT ("[%s:%d] ch:%d, SrcType: %d\n", __FUNCTION__, __LINE__, ch,
                  srcType);
@@ -215,96 +222,86 @@ CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
 
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomerPipeline");
 
-  /* initial parameter in customer pipeline */
-  if (MEDIA_OK != _initValue ()) {
+  //pipeline is already created on initSpi_pre()
+
+#if 0                           /* jhtark - webos refactory - temp [ need to organize NC4.0 pipeline sturcture ] */
+  if (contentInfo.videoDataInfo.isSSPK == TRUE)       //To prevent sspk forced resume
+    _gIsStartedPlay[ch] = TRUE;
+
+  LMF_DBG_PRINT ("[%s:%d] Set StartedPlay value-> [%d]\n", __FUNCTION__,
+                 __LINE__, _gIsStartedPlay[ch]);
+
+  gPipelineInfo[ch].ch = ch;
+
+  gPipelineInfo[ch].feededTotalSize = 0;
+#endif
+
+  m_eSrcType = srcType;
+  m_eContentType = CONTENT_TYPE_UNKNOWN;
+  m_uNumOfSrc = 1;
+  memcpy (&m_stContentInfo, pstContentInfo, sizeof (MEDIA_CUSTOM_CONTENT_INFO_T));
+
+#if 1                           /* changbok.chea - webos refactory - temp [ need to organize NC4.0 pipeline sturcture ] */
+  if (m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_ES)
+    m_uNumOfSrc = _CheckContentType ();
+
+  LMF_DBG_PRINT ("gPipelineInfo[ch].numOfSrc == %d\n", m_uNumOfSrc);
+  m_audCount = 0;
+#endif
+
+  /* create src element based on each src type */
+  if (_addSrcElement (startOffset, pSrcPath) != MEDIA_OK) {
+    LMF_ERR_PRINT ("[%s:%d] fail to create the src element (%s)\n", __FUNCTION__, __LINE__, pSrcPath);
     return MEDIA_ERROR;
-  } else {
-    /* create pipeline */
-    m_pstPipeline = gst_pipeline_new ("custom-player");
-
-    if (!m_pstPipeline) {
-      LMF_DBG_PRINT ("[%s:%d] pipeline could not be created!!!\n", __FUNCTION__,
-                     __LINE__);
-      return MEDIA_ERROR;
-    }
-#if 0                           /* jhtark - webos refactory - temp [ 기존 pipeline structure에 저장된 값들 정리 필요 ] */
-    if (contentInfo.videoDataInfo.isSSPK == TRUE)       //To prevent sspk forced resume
-      _gIsStartedPlay[ch] = TRUE;
-
-    LMF_DBG_PRINT ("[%s:%d] Set StartedPlay value-> [%d]\n", __FUNCTION__,
-                   __LINE__, _gIsStartedPlay[ch]);
-
-    gPipelineInfo[ch].ch = ch;
-
-    gPipelineInfo[ch].feededTotalSize = 0;
-#endif
-
-    m_eSrcType = srcType;
-    m_eContentType = CONTENT_TYPE_UNKNOWN;
-    m_uNumOfSrc = 1;
-    memcpy (&m_stContentInfo, pstContentInfo,
-            sizeof (MEDIA_CUSTOM_CONTENT_INFO_T));
-
-#if 1                           /* changbok.chea - webos refactory - temp [ 기존 pipeline structure에 저장된 값들 정리 필요 ] */
-    if (m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_ES)
-      m_uNumOfSrc = _CheckContentType ();
-
-    LMF_DBG_PRINT ("gPipelineInfo[ch].numOfSrc == %d\n", m_uNumOfSrc);
-    //m_nAud_count = 0;
-#endif
-
-    /* create src element based on each src type */
-    if (_addSrcElement (startOffset, pSrcPath) != MEDIA_OK) {
-      LMF_ERR_PRINT ("[%s:%d] fail to create the src element (%s)\n",
-                     __FUNCTION__, __LINE__, pSrcPath);
-      return MEDIA_ERROR;
-    }
-
-
-    /* create demux element & sink element link */
-    switch (m_eSrcType) {
-    case MEDIA_CUSTOM_SRC_TYPE_ES:
-    {
-#if 0                           /* jhtark - webos refactory - temp [ 추가 필요 ] */
-      retVal =
-        LMF_STATIC_ES_AddSinkElement (&gPipelineInfo[ch], srcType,
-                                      contentInfo, pWritePath);
-#endif
-    }
-    break;
-    case MEDIA_CUSTOM_SRC_TYPE_DOWNLOAD:
-    {
-#if 0                           /* jhtark - webos refactory - temp [ 추가 필요 ] */
-      retVal =
-        LMF_STATIC_DN_AddSinkElement (&gPipelineInfo[ch], srcType,
-                                      contentInfo, pWritePath);
-#endif
-    }
-    break;
-    default:
-    {
-      //위의 경우 이외는 모두 demux 찾음
-      retVal = _addDemuxElement ();
-    }
-    break;
-    }
-
-    if (retVal != MEDIA_OK) {
-      LMF_ERR_PRINT ("[%s:%d] fail to create the sink element or find demux \n",
-                     __FUNCTION__, __LINE__);
-      return MEDIA_ERROR;
-    }
   }
+
+
+  /* create demux element & sink element link */
+  switch (m_eSrcType) {
+  case MEDIA_CUSTOM_SRC_TYPE_ES:
+  {
+#if 0                           /* jhtark - webos refactory - temp [ need to add ] */
+    retVal =
+      LMF_STATIC_ES_AddSinkElement (&gPipelineInfo[ch], srcType,
+                                    contentInfo, pWritePath);
+#endif
+  }
+  break;
+  case MEDIA_CUSTOM_SRC_TYPE_DOWNLOAD:
+  {
+#if 0                           /* jhtark - webos refactory - temp [ need to add ] */
+    retVal =
+      LMF_STATIC_DN_AddSinkElement (&gPipelineInfo[ch], srcType,
+                                    contentInfo, pWritePath);
+#endif
+  }
+  break;
+  default:
+  {
+    //push case must find demuxer element
+    retVal = _addDemuxElement ();
+  }
+  break;
+  }
+
+  if (retVal != MEDIA_OK) {
+    LMF_ERR_PRINT ("[%s:%d] fail to create the sink element or find demux \n", __FUNCTION__, __LINE__);
+    return MEDIA_ERROR;
+  }
+
+  //set pipeline status to READY
+  gst_element_set_state(m_pipeHandle, GST_STATE_READY);
+
 
   /*
      <<      TODO    >>
-     1. 누가 pipeline의 상태를 pause 로 만들 것인지 확인 필요.
+     1. who set pipeline's state to 'puased'?
      (customerplayer or customerpipeline)
-     2. demux에서 올라온 pad added 후에 이후 element 들 연결
-     3. multiqueue 를 사용해서 동작 하는것 고려 -----
+     2. after updating 'pad-added' signal' from demuxer, link elements.
+     3. need to consider using multiqueue  -----
    */
 
-#if 0                           /* jhtark - webos refactory - temp [ 추가 필요 ] */
+#if 0                           /* jhtark - webos refactory - temp [ need to add ] */
 
   // 5. [Thread] create thread
   if (_LMF_STATIC_COMM_CreateThread (ch, srcType, contentInfo,
@@ -318,12 +315,49 @@ CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
   LMF_STATIC_COMM_StartBufferMonitoring (ch);
 #endif
 
+  //set pipeline status to Pause
+  if(pause() == false)
+    return MEDIA_ERROR;
+
+  return MEDIA_OK;
 }
 
-guint8 CustomPipeline::_CheckContentType (void)
+gboolean CustomPipeline::loadSpi_pre()
 {
-  guint8
-  numOfSrc = 0;
+
+  /* initial parameter in customer pipeline */
+  if (MEDIA_OK != _initValue ()) {
+    return false;
+  } else {
+
+    /* create pipeline */
+    m_pstPipeline = gst_pipeline_new ("custom-player");
+
+    if (!m_pstPipeline)
+    {
+      LMF_DBG_PRINT ("[%s:%d] pipeline could not be created!!!\n", __FUNCTION__,  __LINE__);
+      return false;
+    }
+  }
+
+  //register custom pipeline handle
+  m_pipeHandle = m_pstPipeline;
+
+  return true;
+}
+gboolean CustomPipeline::loadSpi_post()
+{
+  //
+
+
+  return true;
+}
+
+
+guint8
+CustomPipeline::_CheckContentType (void)
+{
+  guint8 numOfSrc = 0;
 
   LMF_DBG_PRINT ("[%s:%d] vcodec= 0x%X, acodec= 0x%X\n", __FUNCTION__, __LINE__,
                  m_stContentInfo.vcodec, m_stContentInfo.acodec);
@@ -345,16 +379,55 @@ guint8 CustomPipeline::_CheckContentType (void)
   return numOfSrc;
 }
 
-
-MEDIA_STATUS_T CustomPipeline::_addSrcElement_Push (void)
+gint
+CustomPipeline::_transSampleRate(MEDIA_AUDIO_SAMPLERATE_T sampleRate)
 {
-  MEDIA_SRC_T *
-  pSrcInfo;
-  MEDIA_STATUS_T
-  retVal = MEDIA_OK;
+  gint sample = 0;
 
-  guint
-  bufferMaxLevel = 0, bufferMinPercent = 0, preBufferLevel = 0;
+  switch(sampleRate)
+  {
+  case MEDIA_AUDIO_SAMPLERATE_48K:
+    sample = 48000;
+    break;
+  case MEDIA_AUDIO_SAMPLERATE_44_1K:
+    sample = 44100;
+    break;
+  case MEDIA_AUDIO_SAMPLERATE_32K:
+    sample = 32000;
+    break;
+  case MEDIA_AUDIO_SAMPLERATE_24K:
+    sample = 24000;
+    break;
+  case MEDIA_AUDIO_SAMPLERATE_16K:
+    sample = 16000;
+    break;
+  case MEDIA_AUDIO_SAMPLERATE_12K:
+    sample = 12000;
+    break;
+  case MEDIA_AUDIO_SAMPLERATE_8K:
+    sample = 8000;
+    break;
+  case MEDIA_AUDIO_SAMPLERATE_22_05K:
+    sample = 22050;
+    break;
+  default:
+    break;
+  }
+
+  LMF_DBG_PRINT("[%s:%d] Get Sample Rate Value [%d -> %d]\n", __FUNCTION__, __LINE__, sampleRate, sample);
+  return sample;
+}
+
+
+MEDIA_STATUS_T
+CustomPipeline::_addSrcElement_Push (void)
+{
+  MEDIA_SRC_T *pSrcInfo;
+  MEDIA_STATUS_T retVal = MEDIA_OK;
+
+  guint bufferMaxLevel = 0, bufferMinPercent = 0, preBufferLevel = 0;
+
+  GstAppSrcCallbacks callbacks = {&_callbackStartFeed,&_callbackStopFeed,&_callbackSeekData};
 
   LMF_DBG_PRINT ("[%s:%d][PUSH]\n", __FUNCTION__, __LINE__);
 
@@ -416,20 +489,23 @@ MEDIA_STATUS_T CustomPipeline::_addSrcElement_Push (void)
   gst_util_set_object_arg (G_OBJECT (pSrcInfo->pSrcElement), "stream-type",
                            "seekable");
 
+#if 0 /* jhtark - webos refactory - temp [ need to confirm gst ] */ // changbok : need to check compile error 
   /* changbok:Todo check callback compile error */
+//  g_signal_connect (G_OBJECT (pSrcInfo->pSrcElement), "enough-data",G_CALLBACK (_callbackStopFeed), this);
+//  g_signal_connect (G_OBJECT (pSrcInfo->pSrcElement), "seek-data",G_CALLBACK (_callbackSeekData), this);
 //  g_signal_connect(pSrcInfo->pSrcElement, "need-data", G_CALLBACK(_LMF_StartFeed), pSrcInfo);
+#else
+  {
+    GstAppSrc *pstAppSrc = reinterpret_cast<GstAppSrc*>(static_cast<GstElement*>(pSrcInfo->pSrcElement));
 
-  // changbok : need to check compile error
-#if 0
-  g_signal_connect (G_OBJECT (pSrcInfo->pSrcElement), "enough-data",
-                    G_CALLBACK (&_callbackStopFeed), this);
-  g_signal_connect (G_OBJECT (pSrcInfo->pSrcElement), "seek-data",
-                    G_CALLBACK (&_callbackSeekData), this);
+//  TODO : the reason that the function is not included.  gst_app_src_set_callbacks(pstAppSrc/*pSrcInfo->pSrcElement*/,&callbacks,this,NULL );
+  }
 #endif
 
+  //register appsrc to pipeline
   gst_bin_add (GST_BIN (m_pstPipeline), pSrcInfo->pSrcElement);
 
-#if 0                           /* jhtark - webos refactory - temp [ H14 먼저 진행  ] */
+#if 0                           /* jhtark - webos refactory - temp [ still not use MTK platform ] */
 #if (PLATFORM_TYPE == MTK_PLATFORM)
 
   // MD지수 개선 : MTK전용 pipeline 구성한 부분을 분리
@@ -467,7 +543,7 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
   case MEDIA_CUSTOM_SRC_TYPE_URI:
   case MEDIA_CUSTOM_SRC_TYPE_DOWNLOAD:
   {
-#if 0                           /* jhtark - webos refactory - temp [ 추가 필요  ] */
+#if 0                           /* jhtark - webos refactory - temp [ need to add ] */
     if (pPath == NULL) {
       LMF_ERR_PRINT ("[%s:%d][ERROR] pPath is NULL!!!\n", __FUNCTION__,
                      __LINE__);
@@ -491,7 +567,7 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
   break;
   case MEDIA_CUSTOM_SRC_TYPE_FILE:
   {
-#if 0                           /* jhtark - webos refactory - temp [ 추가 필요  ] */
+#if 0                           /* jhtark - webos refactory - temp [ need to add ] */
     /* add element for File case */
     retVal = LMF_STATIC_OTHER_AddFileElement (&gPipelineInfo[ch], pPath);
     if (retVal != MEDIA_OK) {
@@ -504,7 +580,7 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
   break;
   case MEDIA_CUSTOM_SRC_TYPE_SCREEN_SHARE:
   {
-#if 0                           /* jhtark - webos refactory - temp [ 추가 필요  ] */
+#if 0                           /* jhtark - webos refactory - temp [ need to add ] */
     /* add element for UDP case */
     retVal =
       LMF_STATIC_OTHER_AddUDPElement (&gPipelineInfo[ch], pcontentInfo);
@@ -519,7 +595,7 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
   case MEDIA_CUSTOM_SRC_TYPE_FCC:
   case MEDIA_CUSTOM_SRC_TYPE_RTP_MCAST:
   {
-#if 0                           /* jhtark - webos refactory - temp [ 추가 필요  ] */
+#if 0                           /* jhtark - webos refactory - temp [ need to add  ] */
     /* add element for FCC case */
     retVal =
       LMF_STATIC_OTHER_AddFCCElement (&gPipelineInfo[ch], pcontentInfo,
@@ -535,8 +611,9 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
   case MEDIA_CUSTOM_SRC_TYPE_ES:
   {
     /* Add Elements on ES case */
-//          retVal = LMF_STATIC_ES_AddElement(&gPipelineInfo[ch],pcontentInfo);
-    if (retVal != MEDIA_OK) {
+//        retVal = LMF_STATIC_ES_AddElement(&gPipelineInfo[ch],pcontentInfo);
+    if (retVal != MEDIA_OK)
+    {
       LMF_ERR_PRINT ("[%s:%d] _LMF_STATIC_AddElementOnESCase return Fail!\n",
                      __FUNCTION__, __LINE__);
       return MEDIA_ERROR;
@@ -548,17 +625,16 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
   {
     /* Add Elements on Push and TTS case */
     retVal = _addSrcElement_Push ();
-    if (retVal != MEDIA_OK) {
-      LMF_ERR_PRINT ("[%s:%d] LMF_STATIC_PKG_AddElement return Fail!\n",
-                     __FUNCTION__, __LINE__);
+    if (retVal != MEDIA_OK)
+    {
+      LMF_ERR_PRINT ("[%s:%d] LMF_STATIC_PKG_AddElement return Fail!\n", __FUNCTION__, __LINE__);
       return MEDIA_ERROR;
     }
   }
   break;
   default:
   {
-    LMF_DBG_PRINT ("[%s:%d] Src Type is wrong.(%d)\n", __FUNCTION__, __LINE__,
-                   m_eSrcType);
+    LMF_DBG_PRINT ("[%s:%d] Src Type is wrong.(%d)\n", __FUNCTION__, __LINE__,m_eSrcType);
     return MEDIA_ERROR;
     // break;
   }
@@ -569,10 +645,11 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
 }
 
 void
-CustomPipeline::_callbackStopFeed (GstElement * element, MEDIA_SRC_T * app)
+CustomPipeline::_callbackStopFeed (GstAppSrc * element, gpointer data /*MEDIA_SRC_T * app*/)
 {
 
-#if 0                           /* jhtark - webos refactory - temp [ 아래과정 정리 필요  ] */
+#if 0
+#if 0                           /* jhtark - webos refactory - temp [ need to organize below statements ] */
   MEDIA_CHANNEL_T ch = app->ch;
 
   if (ch == MEDIA_CH_UNKNOWN)
@@ -619,23 +696,22 @@ CustomPipeline::_callbackStopFeed (GstElement * element, MEDIA_SRC_T * app)
     _gIsStartedPlay[ch] = TRUE;
 #endif
   }
+
+#endif
 }
 
 gboolean
-CustomPipeline::_callbackSeekData (GstElement * element, guint64 offset,
-                                   MEDIA_SRC_T * app)
+CustomPipeline::_callbackSeekData (GstAppSrc * element, guint64 offset, gpointer data /*   MEDIA_SRC_T * app */)
 {
-  LMF_DBG_PRINT ("[SEEK DATA]__________ offset:%lld / IDX_%s \n", offset,
-                 (app->srcIdx == IDX_VIDEO) ? "Video" : "Audio");
-  return TRUE;
+//  LMF_DBG_PRINT ("[SEEK DATA]__________ offset:%lld / IDX_%s \n", offset,   (app->srcIdx == IDX_VIDEO) ? "Video" : "Audio");
+  return true;
 }
 
 
 void
-CustomPipeline::_callbackStartFeed (GstElement * element, guint32 size,
-                                    MEDIA_SRC_T * app)
+CustomPipeline::_callbackStartFeed (GstAppSrc * element, guint32 size,  gpointer data /*MEDIA_SRC_T * app*/)
 {
-#if 0                           /* jhtark - webos refactory - temp [ 아래과정 정리 필요  ] */
+#if 0                           /* jhtark - webos refactory - temp [ ned to organize below statements  ] */
   MEDIA_CHANNEL_T ch = app->ch;
 
   if (ch == MEDIA_CH_UNKNOWN)
@@ -648,7 +724,7 @@ CustomPipeline::_callbackStartFeed (GstElement * element, guint32 size,
     return;
 #endif
 
-#if 0                           /* jhtark - webos refactory - temp [ 추후 연결 - Event ] */
+#if 0                           /* changbok - webos refactory - temp [ need to link event(HTML5 Youtube callback) ] */
   //LMF_DBG_PRINT("***************[Need-Data]Buffer Low state = %d *************\n", gPipelineInfo[ch].bNeedFeedData[app->srcIdx]);
   if (app->srcIdx == IDX_VIDEO) //HTML5 youtube playback test
     API_LMF_EVENT_Notify (pLmfPlayerHndl->ch, MEDIA_CB_MSG_YOUTUBE_NEED_VDATA);
@@ -656,17 +732,62 @@ CustomPipeline::_callbackStartFeed (GstElement * element, guint32 size,
     API_LMF_EVENT_Notify (pLmfPlayerHndl->ch, MEDIA_CB_MSG_YOUTUBE_NEED_ADATA);
 #endif
 
+#if 0
   if (m_eNeedFeedData[app->srcIdx] == CUSTOM_BUFFER_FULL) {
     //LMF_DBG_PRINT("[Buffer Low]__________ FULL -> LOW (%s)\n", (app->srcIdx == IDX_VIDEO)?"Video":"Audio");
     m_eNeedFeedData[app->srcIdx] = CUSTOM_BUFFER_LOW;
   }
+#endif
 }
 
-MEDIA_STATUS_T CustomPipeline::_initValue (void)
+void CustomPipeline::_underrunSignalCb(GstElement *element, gpointer data)
+{
+  CustomPipeline *pCustomPipe = (CustomPipeline*)data;
+
+#if 0     /* jhtark - webos refactory - temp [ need to organize below statements  ] */
+  LMF_APP_HNDL_T *pLmfAppHndl = NULL;
+  LMF_PLYR_HNDL_T *pLmfPlayerHndl = NULL;
+
+  pLmfAppHndl = API_LMF_PLYR_GetAppHandle(pPipeline->ch);
+  if(pLmfAppHndl==NULL)
+  {
+    LMF_ERR_PRINT("[%s:%d]pLmfAppHndl is NULL\n", __FUNCTION__, __LINE__);
+    return;
+  }
+
+  pLmfPlayerHndl = &(pLmfAppHndl->priv_lph);
+  if(pLmfPlayerHndl==NULL)
+  {
+    LMF_ERR_PRINT("[%s:%d]pLmfPlayerHndl is NULL\n", __FUNCTION__, __LINE__);
+    return;
+  }
+#endif
+
+  LMF_BUFFER_PERI_PRINT("[%s:%d]-------- VIDEO underrun dectected\n", __FUNCTION__, __LINE__);
+
+  if( pCustomPipe->m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_ES ) // ES case only.. To Do TS/PS case
+  {
+    if(pCustomPipe->m_eNeedFeedData[IDX_VIDEO] != CUSTOM_BUFFER_LOW)
+    {
+      if (strcmp(gst_element_get_name(element), "vdec-sink") == 0)
+        LMF_BUFFER_PERI_PRINT("[Buffer Low]_____EVENT_(V_Underrun_Signal)_ Notify Callback to APP\n");
+      else
+        LMF_BUFFER_PERI_PRINT("[Buffer Low]_____EVENT_(A_Underrun_Signal)_ Notify Callback to APP\n");
+
+#if 0  /* jhtark - webos refactory - temp [ need to link event ] */
+      API_LMF_EVENT_Notify(pLmfPlayerHndl->ch, MEDIA_CB_MSG_ERR_BUFFERLOW);//(MSG_FLASHES2UI_BUFFER_LOW);
+#endif
+      pCustomPipe->m_eNeedFeedData[IDX_VIDEO] = CUSTOM_BUFFER_LOW;
+    }
+  }
+}
+
+
+MEDIA_STATUS_T
+CustomPipeline::_initValue (void)
 {
 
-  GError *
-  err;
+  GError *err;
   LMF_DBG_PRINT ("[%s] ----- start -----\n", __FUNCTION__);
 
   // thread init
@@ -674,14 +795,15 @@ MEDIA_STATUS_T CustomPipeline::_initValue (void)
     g_thread_init (NULL);
   }
 
-  /* jhtark - webos refactory - temp [ gst 추가 필요  ] */
+  /* jhtark - webos refactory - temp [ need to add gst  ] */
   if (!gst_init_check (NULL, NULL, &err)) {
     LMF_DBG_PRINT ("gst_init Error: %s\n", err->message);
     g_error_free (err);
 
     return MEDIA_ERROR;
   }
-#if 0                           /* jhtark - webos refactory - temp [ global 변수 정리 필요 ] */
+
+#if 0                           /* jhtark - webos refactory - temp [ need to organize NC4.0 global values ] */
   gbReceivedEos[ch] = FALSE;
   _gbSeekLog = FALSE;
   currentPts[ch] = 0;
@@ -706,6 +828,7 @@ MEDIA_STATUS_T CustomPipeline::_initValue (void)
 void
 CustomPipeline::_addNewPad (GstElement * element, GstPad * pad, gpointer data)
 {
+
   char *pad_name;
   guint32 cnt;
 
@@ -715,6 +838,8 @@ CustomPipeline::_addNewPad (GstElement * element, GstPad * pad, gpointer data)
   GstStructure *capsStr = NULL;
   GstCaps *caps = NULL;
 
+  CustomPipeline *pCustomPipe = (CustomPipeline *)data;
+
   LMF_DBG_PRINT ("Singal: pad-added\n");
 
   pad_name = gst_pad_get_name (pad);
@@ -723,8 +848,7 @@ CustomPipeline::_addNewPad (GstElement * element, GstPad * pad, gpointer data)
   LMF_DBG_PRINT ("Element name= %s \n", pElementName);
   LMF_DBG_PRINT ("Pad name= %s\n", pad_name);
 
-  /* changbok - webos refactory - temp [ 기존 ifdef 문 정리 필요 ] */
-#if 0
+#if 0 /* changbok - webos refactory - temp [ need to organize NC4.0 ifdef statements ] */
 #ifdef INCLUDE_ACTVILA
   if (g_strrstr (pad_name, "subtitle")) {
     guint *datalength = NULL;
@@ -753,23 +877,23 @@ CustomPipeline::_addNewPad (GstElement * element, GstPad * pad, gpointer data)
 
   capsStr = gst_caps_get_structure (caps, 0);
   if (capsStr == NULL) {
-    LMF_DBG_PRINT ("%s.%d: unable to get structure from caps\n", __FUNCTION__,
-                   __LINE__);
+    LMF_DBG_PRINT ("%s.%d: unable to get structure from caps\n", __FUNCTION__,  __LINE__);
     goto exit_addPad;
   }
   cnt = gst_caps_get_size (caps);
 
-  if (g_strrstr (pad_name, "video")) {
+  if (g_strrstr (pad_name, "video"))
+  {
     LMF_DBG_PRINT ("gst test] enter video pad added\n");
 
     pStrStructure = gst_structure_to_string (capsStr);
 
     LMF_DBG_PRINT ("[Video] cnt=%d, str = %s\n", cnt, pStrStructure);
 
-    _addVideoPad (pad);
+    pCustomPipe->_addVideoPad (pad);
 
     //add pad number
-    m_CheckNum++;
+//    m_CheckNum++;
   } else if (g_strrstr (pad_name, "audio")) {
     LMF_DBG_PRINT ("gst test] enter audio pad added\n");
 
@@ -777,13 +901,13 @@ CustomPipeline::_addNewPad (GstElement * element, GstPad * pad, gpointer data)
 
     LMF_DBG_PRINT ("[Audio] cnt=%d, str = %s\n", cnt, pStrStructure);
 
-    _addAudioPad (capsStr, pad);
+    pCustomPipe->_addAudioPad (capsStr, pad);
 
     //add pad number
-    m_CheckNum++;
+    //    m_CheckNum++;
   } else if (g_strrstr (pad_name, "application")) {
     LMF_DBG_PRINT ("gst test] enter text pad added\n");
-    _addTextPad (pad);
+    pCustomPipe->_addTextPad (pad);
 
   } else {
     LMF_DBG_PRINT ("NO LINK:: Mime Type is %s\n", pad_name);
@@ -825,7 +949,7 @@ CustomPipeline::_addVideoPad (GstPad * pad)
 //    goto exit_addVideoPad;
   }
   //FF 3 : Add Pad
-  sinkpad = gst_element_get_static_pad (pVideoQueueElement, "sink");
+  sinkpad = gst_element_get_static_pad (m_pstVideoQueueElement, "sink");
   if (sinkpad == NULL) {
     LMF_DBG_PRINT ("%s.%d: Video Queue Pad is NULL!!!\n", __FUNCTION__,
                    __LINE__);
@@ -857,7 +981,7 @@ CustomPipeline::_addVideoPad (GstPad * pad)
     */
     {
       if ((parent =
-             GST_ELEMENT_CAST (gst_element_get_parent (pVideoQueueElement)))) {
+             GST_ELEMENT_CAST (gst_element_get_parent (m_pstVideoQueueElement)))) {
         GstState parent_current, parent_pending;
 
         GST_OBJECT_LOCK (parent);
@@ -874,17 +998,17 @@ CustomPipeline::_addVideoPad (GstPad * pad)
 
         LMF_DBG_PRINT
         ("[video sink] syncing state (%s) to parent %s %s (%s, %s)\n",
-         gst_element_state_get_name (GST_STATE (pVideoQueueElement)),
+         gst_element_state_get_name (GST_STATE (m_pstVideoQueueElement)),
          gst_element_get_name (parent), gst_element_state_get_name (target),
          gst_element_state_get_name (parent_current),
          gst_element_state_get_name (parent_pending));
       }
 
-      gst_element_sync_state_with_parent (pVideoQueueElement);
+      gst_element_sync_state_with_parent (m_pstVideoQueueElement);
       // link audio queue and audio sink
-      gst_element_link (pVideoQueueElement, pVideoDecoderElement);
+      gst_element_link (m_pstVideoQueueElement, m_pstVideoDecoderElement);
       // change state sub-title sink
-      gst_element_sync_state_with_parent (pVideoDecoderElement);
+      gst_element_sync_state_with_parent (m_pstVideoDecoderElement);
     }
 
   }
@@ -900,22 +1024,22 @@ exit_addVideoPad:
   return;
 }
 
-MEDIA_STATUS_T CustomPipeline::_setPropertyOnVideo (void)
+MEDIA_STATUS_T
+CustomPipeline::_setPropertyOnVideo (void)
 {
-  MEDIA_STATUS_T
-  retVal = MEDIA_OK;
+  MEDIA_STATUS_T retVal = MEDIA_OK;
 
   if (m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_SCREEN_SHARE) {
-    //widi property change 반영
-    g_object_set (G_OBJECT (pVideoDecoderElement), "app-type", "RTC", NULL);
+    //widi property
+    g_object_set (G_OBJECT (m_pstVideoDecoderElement), "app-type", "RTC", NULL);
 
 //#if (PLATFORM_TYPE == LG_PLATFORM)
-    g_object_set (G_OBJECT (pVideoDecoderElement), "lipsync-offset", 33, NULL);
-    g_object_set (G_OBJECT (pVideoDecoderElement), "vsink-async-handling",
+    g_object_set (G_OBJECT (m_pstVideoDecoderElement), "lipsync-offset", 33, NULL);
+    g_object_set (G_OBJECT (m_pstVideoDecoderElement), "vsink-async-handling",
                   FALSE, NULL);
-    g_object_set (G_OBJECT (pVideoDecoderElement), "vsink-sync-on-clock", FALSE,
+    g_object_set (G_OBJECT (m_pstVideoDecoderElement), "vsink-sync-on-clock", FALSE,
                   NULL);
-    g_object_set (G_OBJECT (pVideoDecoderElement), "low-delay", TRUE, NULL);
+    g_object_set (G_OBJECT (m_pstVideoDecoderElement), "low-delay", TRUE, NULL);
 //#endif
   }
   // set 3D Type
@@ -923,15 +1047,15 @@ MEDIA_STATUS_T CustomPipeline::_setPropertyOnVideo (void)
                  m_stContentInfo.videoDataInfo.interleaving_type);
   if (m_stContentInfo.videoDataInfo.interleaving_type != MEDIA_3D_NONE) {
     if ((g_object_class_find_property (G_OBJECT_GET_CLASS
-                                       (pVideoDecoderElement), "interleaving_type")))
-      g_object_set (G_OBJECT (pVideoDecoderElement), "interleaving_type",
+                                       (m_pstVideoDecoderElement), "interleaving_type")))
+      g_object_set (G_OBJECT (m_pstVideoDecoderElement), "interleaving_type",
                     (m_stContentInfo.videoDataInfo.interleaving_type), NULL);
     else
       LMF_DBG_PRINT ("[%s:%d] There is no 'interleaving_type' property.\n",
                      __FUNCTION__, __LINE__);
   }
   /*
-  #if (PLATFORM_TYPE == MTK_PLATFORM)
+  #if (PLATFORM_TYPE == MTK_PLATFORM)  // still not use MTK platform in webOS
     // set seamless play
     if(pPipeInformation->contentInfo.videoDataInfo.adaptiveInfo.bSeamlessPlay == TRUE)
     {
@@ -970,42 +1094,44 @@ MEDIA_STATUS_T CustomPipeline::_setPropertyOnVideo (void)
   return retVal;
 }
 
-MEDIA_STATUS_T CustomPipeline::_addVideoElement (void)
+MEDIA_STATUS_T
+CustomPipeline::_addVideoElement (void)
 {
-  MEDIA_STATUS_T
-  retVal = MEDIA_ERROR;
+  MEDIA_STATUS_T retVal = MEDIA_ERROR;
 
-  if (!pVideoQueueElement) {
+  if (!m_pstVideoQueueElement) {
     LMF_DBG_PRINT ("%s.%d: pVideoQueueElement is NULL -> Start to create\n",
                    __FUNCTION__, __LINE__);
 
-    pVideoQueueElement = gst_element_factory_make ("queue", "video-queue");
-    if (pVideoQueueElement) {
+    m_pstVideoQueueElement = gst_element_factory_make ("queue", "video-queue");
+    if (m_pstVideoQueueElement) {
       LMF_DBG_PRINT ("%s.%d: Video queue can not be created!!!\n", __FUNCTION__,
                      __LINE__);
       return retVal;
     }
 
-    g_object_set (G_OBJECT (pVideoQueueElement),
+    g_object_set (G_OBJECT (m_pstVideoQueueElement),
                   "max-size-bytes", (guint) MEDIA_QUEUE_MAX_SIZE,
                   "max-size-time", (guint64) 0, "max-size-buffers", (guint) 0, NULL);
 
-    gst_bin_add (GST_BIN (m_pstPipeline), pVideoQueueElement);
+    gst_bin_add (GST_BIN (m_pstPipeline), m_pstVideoQueueElement);
   }
 
-  if (!pVideoDecoderElement) {
+  if (!m_pstVideoDecoderElement) {
     LMF_DBG_PRINT ("%s.%d: pVideoDecoderElement is NULL -> Start to create\n",
                    __FUNCTION__, __LINE__);
 
-    pVideoDecoderElement = gst_element_factory_make ("vdecsink", "video-sink");
-    if (!pVideoDecoderElement) {
+    m_pstVideoDecoderElement = gst_element_factory_make ("vdecsink", "video-sink");
+    if (!m_pstVideoDecoderElement) {
       LMF_DBG_PRINT ("%s.%d: Video decoder can not be created!!!\n",
                      __FUNCTION__, __LINE__);
       return retVal;
     }
+
     /* changbok:Todo check callback compile error */
-    //g_signal_connect(pPipeInformation->pVideoDecoderElement, "video-underrun", G_CALLBACK(LMF_STATIC_COMM_UnderrunSignalCb), pPipeInformation);
-    gst_bin_add (GST_BIN (m_pstPipeline), pVideoDecoderElement);
+    g_signal_connect(m_pstVideoDecoderElement, "video-underrun", G_CALLBACK(_underrunSignalCb), this);
+
+    gst_bin_add (GST_BIN (m_pstPipeline), m_pstVideoDecoderElement);
   }
 
   retVal = MEDIA_OK;
@@ -1015,13 +1141,376 @@ MEDIA_STATUS_T CustomPipeline::_addVideoElement (void)
 void
 CustomPipeline::_addAudioPad (GstStructure * capsStr, GstPad * pad)
 {
+  int number = 0;
+  const gchar *mime;
+  MEDIA_STATUS_T retVal = MEDIA_ERROR;
+
+  gint channelsInfo, samplerate, bitrate, codecId, bitspercodedsample;
+  guint pid_num = -1; //for multi track
+
+  number = m_audCount;
+  LMF_DBG_PRINT("%s.%d: audio track %d\n", __FUNCTION__, __LINE__, number);
+
+  m_pstAudioSrcPad[number] = pad;
+
+  gst_structure_get_int (capsStr, "channels", &channelsInfo);
+  gst_structure_get_int (capsStr, "rate", &samplerate);
+  gst_structure_get_int (capsStr, "bitrate", &bitrate);
+  gst_structure_get_int (capsStr, "format", &codecId);
+  gst_structure_get_int (capsStr, "depth", &bitspercodedsample);
+  gst_structure_get_uint (capsStr, "user-audio-track-num", &pid_num);
+
+  LMF_DBG_PRINT("[Audio pid num check] PID Num = %d\n", pid_num);
+  LMF_DBG_PRINT("channels %d, s_rate %d, bitrate %d, c_id: %d, bitspersample: %d\n", channelsInfo, samplerate, bitrate, codecId, bitspercodedsample);
+  LMF_DBG_PRINT("[Audio stream Num] Aud Num = %d\n", number);
+
+  if ((mime = gst_structure_get_name(capsStr)) == NULL)
+  {
+    LMF_ERR_PRINT("%s:%d] unable to get MIME type\n", __FUNCTION__, __LINE__);
+    goto exit_addAudioPad;
+  }
+
+  LMF_DBG_PRINT("%s:%d] mime = %s\n", __FUNCTION__, __LINE__, mime);
+
+  //FF1 : Add Audio elemt and set Property
+  retVal = _addAudioElement(number);
+
+  if(retVal == MEDIA_ERROR)
+  {
+    LMF_ERR_PRINT("%s.%d: _addAudioElement() return Error !!!\n", __FUNCTION__, __LINE__);
+    goto exit_addAudioPad;
+  }
+
+  //In Error case, before using 'sink pad', Returns immediately without 'unref'.
+  if(number == 0)   // Temp : first track only.
+  {
+    LMF_DBG_PRINT("%s.%d: Linking audio pad to audio decoder\n", __FUNCTION__, __LINE__);
+
+    //FF2 : Add SinkPad
+    retVal = _addAudioSink(number,mime,pad,pid_num);
+
+    if(retVal == MEDIA_ERROR)
+    {
+      LMF_ERR_PRINT("%s.%d: _addAudioSink() return Error !!!\n", __FUNCTION__, __LINE__);
+      goto exit_addAudioPad;
+    }
+  }
+
+  else if (number!= 0)     //for multi auido track
+  {
+    if(!m_pstAudioSelectorElement)
+    {
+      LMF_DBG_PRINT("%s.%d: Audio Selector Element is NULL!!!\n", __FUNCTION__, __LINE__);
+      goto exit_addAudioPad;
+    }
+    else
+    {
+      //FF2 : Add SinkPad
+      retVal = _addAudioSink(number,mime,pad,pid_num);
+
+      if(retVal == MEDIA_ERROR)
+      {
+        LMF_ERR_PRINT("%s.%d: _LMF_STATIC_COMM_AddAudioSink() return Error !!!\n", __FUNCTION__, __LINE__);
+        goto exit_addAudioPad;
+      }
+    }
+  }
+
+  m_audCount++;
+  m_eContentType = (CUSTOM_CONTENT_TYPE_T)(m_eContentType |CONTENT_TYPE_AUDIO);
+
+exit_addAudioPad:
+
+//    if( sinkpad != NULL ) gst_object_unref(sinkpad);
+
+  return;
+}
+
+MEDIA_STATUS_T
+CustomPipeline::_addAudioElement(gint audio_num)
+{
+  MEDIA_STATUS_T retVal = MEDIA_ERROR;
+
+  if(!m_pstAudioSelectorElement)
+  {
+    LMF_DBG_PRINT("%s.%d: AudioSelectorElement is NULL -> Start to create\n", __FUNCTION__, __LINE__);
+
+    LMF_DBG_PRINT("Use LG Selector Bin \n ");
+    m_pstAudioSelectorElement = gst_element_factory_make("lgselectorbin", NULL);
+
+    if (!m_pstAudioSelectorElement)
+    {
+      LMF_DBG_PRINT("%s.%d: Audio Selector could not be created!!!\n", __FUNCTION__, __LINE__);
+      return retVal;
+    }
+    gst_bin_add(GST_BIN(m_pstPipeline), m_pstAudioSelectorElement);
+  }
+
+  if(audio_num == 0)
+  {
+    if(!m_pstAudioQueueElement)
+    {
+      LMF_DBG_PRINT("%s.%d: AudioQueueElement is NULL -> Start to create\n", __FUNCTION__, __LINE__);
+
+      // need audio queue.
+      m_pstAudioQueueElement = gst_element_factory_make("queue", "audio-queue");
+      if (!m_pstAudioQueueElement)
+      {
+        LMF_DBG_PRINT("%s.%d: Audio queue could not be created!!!\n", __FUNCTION__, __LINE__);
+        return retVal;
+      }
+
+      g_object_set(G_OBJECT(m_pstAudioQueueElement),
+                   "max-size-bytes", (guint)MEDIA_QUEUE_MAX_SIZE,
+                   "max-size-time",  (guint64)0,
+                   "max-size-buffers", (guint)0,
+                   NULL);
+
+      gst_bin_add(GST_BIN(m_pstPipeline), m_pstAudioQueueElement);
+    }
+
+    if(!m_pstAudioDecoderElement)
+    {
+      LMF_DBG_PRINT("%s.%d: AudioDecoderElement is NULL -> Start to create\n", __FUNCTION__, __LINE__);
+
+      // make audio sink element
+      m_pstAudioDecoderElement = gst_element_factory_make("adecsink", "audio-sink");
+      if (!m_pstAudioDecoderElement)
+      {
+        LMF_DBG_PRINT("%s.%d: ADEC sink could not be created!!!\n", __FUNCTION__, __LINE__);
+        \
+        return retVal;
+      }
+      g_signal_connect(m_pstAudioDecoderElement, "audio-underrun", G_CALLBACK(_underrunSignalCb), this);
+
+      gst_bin_add(GST_BIN(m_pstPipeline), m_pstAudioDecoderElement);
+    }
+
+//#if (PLATFORM_TYPE == LG_PLATFORM)
+    if(m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_SCREEN_SHARE)
+    {
+      //widi property
+      g_object_set(G_OBJECT(m_pstAudioDecoderElement), "app-type","RTC", NULL);
+
+//#if (PLATFORM_TYPE == LG_PLATFORM)
+      g_object_set(G_OBJECT(m_pstAudioDecoderElement), "lipsync-offset",90, NULL);
+//#endif
+    }
+//#endif
+#if 0  // still not use MTK platform in webOS
+#if (PLATFORM_TYPE == MTK_PLATFORM)
+    g_object_set (G_OBJECT(gPipelineInfo[pPipeInformation->ch].m_pstAudioDecoderElement), "serverside-trickplay", FALSE, NULL);
+#endif
+#endif
+  }
+
+  return MEDIA_OK;
+}
+
+MEDIA_STATUS_T
+CustomPipeline::_addAudioSink(gint audio_num, const gchar *mime_type, GstPad *pad, guint pid_num)
+{
+  MEDIA_STATUS_T retVal = MEDIA_ERROR;
+  GstPad *sinkpad = NULL;
+
+  if(audio_num == 0)
+  {
+    sinkpad = gst_element_get_request_pad(m_pstAudioSelectorElement, "sink%d");
+    m_pstAudioSinkPad[audio_num] = sinkpad;
+    if (sinkpad == NULL)
+    {
+      LMF_DBG_PRINT("%s.%d: Audio Selector Pad is NULL!!!\n", __FUNCTION__, __LINE__);
+
+      retVal = MEDIA_ERROR;
+      goto exit_addAudioSink;
+    }
+
+    //Set Caps on Audio Sink
+    retVal = _setCapsOnAudioSink(mime_type,sinkpad);
+
+    if (GST_PAD_LINK_OK != gst_pad_link(pad, sinkpad))
+    {
+      if(m_pstAudioSelectorElement != NULL)
+        LMF_DBG_PRINT("%s.%d: link audio Selector was failed!!!!\n", __FUNCTION__, __LINE__);
+      else
+        LMF_DBG_PRINT("%s.%d: link audio queue was failed!!!!\n", __FUNCTION__, __LINE__);
+      // goto exit_addPad;
+    }
+    else
+    {
+      GstElement *parent;
+      GstState  target;
+
+#if 0
+#if (PLATFORM_TYPE == MTK_PLATFORM)
+
+      if((pPipeInformation->srcType != LMF_MEDIA_SRC_TYPE_FILE) &&
+          (pPipeInformation->srcType != LMF_MEDIA_SRC_TYPE_SCREEN_SHARE) &&
+          (pPipeInformation->srcType != LMF_MEDIA_SRC_TYPE_FCC) &&
+          (pPipeInformation->srcType != LMF_MEDIA_SRC_TYPE_RTP_MCAST))
+      {
+        LMF_DBG_PRINT("%s.%d: link audio selector was successed...\n", __FUNCTION__, __LINE__);
+        LMF_STATIC_COMM_SetLanguage(pPipeInformation->ch, audio_num);
+        gst_element_link_many(pPipeInformation->m_pstAudioSelectorElement, pPipeInformation->m_pstAudioQueueElement, pPipeInformation->m_pstAudioDecoderElement, NULL);
+        pPipeInformation->last_pid = pid_num;
+      }
+      else
+#endif
+#endif
+      {
+        if ((parent = GST_ELEMENT_CAST (gst_element_get_parent (m_pstAudioSelectorElement))))
+        {
+          GstState parent_current, parent_pending;
+
+          GST_OBJECT_LOCK (parent);
+          parent_current = GST_STATE (parent);
+          parent_pending = GST_STATE_PENDING (parent);
+          GST_OBJECT_UNLOCK (parent);
+
+          /* set to pending if there is one, else we set it to the current state of
+          * the parent */
+          if (parent_pending != GST_STATE_VOID_PENDING)
+            target = parent_pending;
+          else
+            target = parent_current;
+
+          LMF_DBG_PRINT ("[audio sink] syncing state (%s) to parent %s %s (%s, %s)\n",
+                         gst_element_state_get_name (GST_STATE (m_pstAudioQueueElement)),
+                         gst_element_get_name (parent), gst_element_state_get_name (target),
+                         gst_element_state_get_name (parent_current),
+                         gst_element_state_get_name (parent_pending));
+        }
+
+        gst_element_sync_state_with_parent(m_pstAudioSelectorElement);
+        // link audio selector, queue, audio sink
+        gst_element_link_many(m_pstAudioSelectorElement, m_pstAudioQueueElement, m_pstAudioDecoderElement, NULL);
+        // change state sub-title sink
+        gst_element_sync_state_with_parent(m_pstAudioQueueElement);
+        gst_element_sync_state_with_parent(m_pstAudioDecoderElement);
+
+      }
+
+    }
+  }
+  else if (audio_num != 0)     //for multi auido track
+  {
+    sinkpad = gst_element_get_request_pad(m_pstAudioSelectorElement, "sink%d");
+    if (sinkpad == NULL)
+    {
+      LMF_DBG_PRINT("%s.%d: Audio Selector Pad is NULL!!!\n", __FUNCTION__, __LINE__);
+
+      retVal = MEDIA_ERROR;
+      goto exit_addAudioSink;
+    }
+    m_pstAudioSinkPad[audio_num] = sinkpad;
+    LMF_DBG_PRINT("[%s:%d]pid num = %d, audioNum = %d\n", __FUNCTION__, __LINE__, pid_num, audio_num);
+
+    //Set Caps on Audio Sink
+    _setCapsOnAudioSink(mime_type,sinkpad);
+
+    if (GST_PAD_LINK_OK != gst_pad_link(pad, sinkpad))
+    {
+      LMF_DBG_PRINT("%s.%d: link audio Selector %d sinkpad was failed!!!!\n", __FUNCTION__, __LINE__, audio_num);
+    }
+    else if(pid_num < m_lastPid)
+    {
+      LMF_DBG_PRINT("%s.%d: link audio Selector %d sinkpad was successed!!!!\n", __FUNCTION__, __LINE__, audio_num);
+      SetLanguage(audio_num);   //multi track
+      m_lastPid = pid_num;
+    }
+  }
+
+  //Todo : if 'error' is not occurred, return value should be MEDIA_OK
+  retVal = MEDIA_ERROR;
+
+exit_addAudioSink:
+  if( sinkpad != NULL ) gst_object_unref(sinkpad);
+
+  return  retVal;
+}
+
+MEDIA_STATUS_T
+CustomPipeline::_setCapsOnAudioSink(const char *mime_type, GstPad *sinkpad)
+{
+  GstCaps* pCaps = NULL;
+  gint sampleRate = 0;
+  MEDIA_AUDIO_PCM_INFO_T *pAudioInfo;
+
+  if ((strstr(mime_type, "audio/x-lpcm")))// && (gbWifiDebugMode == FALSE)) //Todo: changbok. need to check wifi debugmode
+  {
+    pAudioInfo = &(m_stContentInfo.audioDataInfo.audio_data.pcmInfo);
+    sampleRate = _transSampleRate(pAudioInfo->sampleRate);
+
+    LMF_DBG_PRINT("[%s:%d]x-lpcm : need to set the caps info manually.\n", __FUNCTION__, __LINE__);
+    LMF_DBG_PRINT("[x-lpcm] sampleRate: 	%d\n", sampleRate);
+    LMF_DBG_PRINT("[x-lpcm] bitsPerSample:	%d\n", pAudioInfo->bitsPerSample);
+    LMF_DBG_PRINT("[x-lpcm] channelMode:	%d\n", pAudioInfo->channelMode);
+
+//#if (PLATFORM_TYPE == LG_PLATFORM)
+    pCaps = gst_caps_new_simple( "audio/x-raw-int",
+                                 "rate",     G_TYPE_INT,   sampleRate,
+                                 "channels",   G_TYPE_INT,   (pAudioInfo->channelMode == MEDIA_AUDIO_PCM_MONO)?(1):(2), // num of ch
+                                 "depth",    G_TYPE_INT,   (pAudioInfo->bitsPerSample == MEDIA_AUDIO_16BIT)?(16):(8),
+//                      "width",    G_TYPE_INT,   (pAudioInfo->bitsPerSample == HOA_AUDIO_16BIT)?(16):(8),
+                                 "endianness", G_TYPE_INT,   4321,
+                                 NULL );
+    /*  //still not use MTK platform
+    #else // TODO : MTK
+        pCaps = gst_caps_new_simple( "audio/x-raw-int",
+                      "rate",     G_TYPE_INT,   sampleRate,
+                      "channels",   G_TYPE_INT,   (pAudioInfo->channelMode == HOA_AUDIO_PCM_MONO)?(1):(2),  // num of ch
+                      "depth",    G_TYPE_INT,   (pAudioInfo->bitsPerSample == HOA_AUDIO_16BIT)?(16):(8),
+                      "width",    G_TYPE_INT,   (pAudioInfo->bitsPerSample == HOA_AUDIO_16BIT)?(16):(8),
+                      "signed",   G_TYPE_BOOLEAN, TRUE,
+                      "endianness", G_TYPE_INT,   4321,
+                      NULL );
+    #endif
+    */
+    gst_pad_set_caps(sinkpad, pCaps);
+    gst_pad_use_fixed_caps(sinkpad);
+    gst_caps_unref(pCaps);
+  }
+
+  return MEDIA_OK;
 
 }
 
 void
-CustomPipeline::_addTextPad (GstPad * pad)
+CustomPipeline::_addTextPad(GstPad *pad)
 {
+  GstPad *sinkpad = NULL;
 
+  // make sub-title sink element
+  pSubtitleSinkElement = gst_element_factory_make("subtsink", "text_sink");
+  if (!pSubtitleSinkElement)
+  {
+    LMF_DBG_PRINT("[%s][%d]: Subtitle sink could not be created!!!\n", __FUNCTION__, __LINE__);
+    goto exit_addTextPad;
+  }
+
+  //Only avi.
+  g_object_set(G_OBJECT(pSubtitleSinkElement)
+               , "subt-type", 1  //AVI 1, MKV 2
+               , "xsub-type", 1  // AVI MODE Only.. LMF_FOURCC('D','X','S','A') 1, LMF_FOURCC('D','X','S','B') 2
+               , "txt-position", 0 // MKV MODE Only
+               , NULL);
+
+  gst_bin_add(GST_BIN (m_pstPipeline), pSubtitleSinkElement);
+  sinkpad = gst_element_get_static_pad(pSubtitleSinkElement, "sink");
+  if (GST_PAD_LINK_OK != gst_pad_link(pad, sinkpad))
+  {
+    LMF_DBG_PRINT("%s.%d: link subtitle sink was failed!!!!\n", __FUNCTION__, __LINE__);
+  }
+  else
+  {
+    gst_element_sync_state_with_parent(pSubtitleSinkElement);
+  }
+
+exit_addTextPad:
+
+  if( sinkpad != NULL ) gst_object_unref(sinkpad);
+
+  return;
 }
 
 void
@@ -1029,14 +1518,11 @@ CustomPipeline::_findDemux (gchar ** pDemuxName)
 {
   int checkCnt = 0;
 
-  LMF_DBG_PRINT ("[%s:%d] input file container (%d)\n", __FUNCTION__, __LINE__,
-                 m_stContentInfo.container);
+  LMF_DBG_PRINT ("[%s:%d] input file container (%d)\n", __FUNCTION__, __LINE__, m_stContentInfo.container);
 
   while (m_stDmxList[checkCnt].contentType != 0xFF) {
     if (m_stDmxList[checkCnt].contentType == (guint8) m_stContentInfo.container) {
-      LMF_DBG_PRINT ("[%s:%d] Find the demux [%d : %s]\n", __FUNCTION__,
-                     __LINE__, m_stContentInfo.container,
-                     m_stDmxList[checkCnt].pElementName);
+      LMF_DBG_PRINT ("[%s:%d] Find the demux [%d : %s]\n", __FUNCTION__,  __LINE__, m_stContentInfo.container,  m_stDmxList[checkCnt].pElementName);
       *pDemuxName = m_stDmxList[checkCnt].pElementName;
       break;
     }
@@ -1044,27 +1530,27 @@ CustomPipeline::_findDemux (gchar ** pDemuxName)
   }
 }
 
-MEDIA_STATUS_T CustomPipeline::_addDemuxElement (void)
+MEDIA_STATUS_T
+CustomPipeline::_addDemuxElement (void)
 {
-  gchar *
-  pDemuxName = NULL;
+  gchar *pDemuxName = NULL;
 
   // find demux element
   _findDemux (&pDemuxName);
+
   if (pDemuxName == NULL) {
-    LMF_DBG_PRINT ("[%s:%d] demux find fail! container:%d\n", __FUNCTION__,
-                   __LINE__, m_stContentInfo.container);
+    LMF_DBG_PRINT ("[%s:%d] demux find fail! container:%d\n", __FUNCTION__,  __LINE__, m_stContentInfo.container);
     return MEDIA_ERROR;
   }
+
   // create demux element
   m_pstDemuxElement = gst_element_factory_make (pDemuxName, NULL);
   if (!m_pstDemuxElement) {
-    LMF_DBG_PRINT ("[%s:%d] demux element(%s) could not be created!\n",
-                   __FUNCTION__, __LINE__, pDemuxName);
+    LMF_DBG_PRINT ("[%s:%d] demux element(%s) could not be created!\n",__FUNCTION__, __LINE__, pDemuxName);
     return MEDIA_ERROR;
   }
-  /* changbok - webos refactory - temp [ 기존 ifdef 문 정리 필요 ] */
-#if 0
+
+#if 0 /* changbok - webos refactory - temp [ need to organize NC4.0 ifdef statements ] */
 #ifdef INCLUDE_ACTVILA
   //Create shared memory for tsdemux and set the memory address property of demux
   if (g_strrstr (pDemuxName, "mpegtsdemux"))    // 20120119
@@ -1077,16 +1563,18 @@ MEDIA_STATUS_T CustomPipeline::_addDemuxElement (void)
   }
 #endif //INCLUDE_ACTVILA
 #endif
+
   // add & link demux element
   gst_bin_add (GST_BIN (m_pstPipeline), m_pstDemuxElement);
+
   if (m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_SCREEN_SHARE) {
-    //widi property change 반영
+    //widi property
     g_object_set (G_OBJECT (m_pstDemuxElement), "app-type", "RTC", NULL);
     gst_element_link (pDepayElement, m_pstDemuxElement);
-  } else if ((m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_FCC)
-             || (m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_RTP_MCAST)) {
-    /* changbok - webos refactory - temp [ 기존 ifdef 문 정리 필요 ] */
-#if 0
+  } else if ((m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_FCC) || (m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_RTP_MCAST))
+  {
+
+#if 0 /* changbok - webos refactory - temp [ need to organize NC4.0 ifdef statements ] */
 #ifdef INCLUDE_VERIMATRIX
 #ifdef INCLUDE_DRM_MODULE
     if (contentInfo.drmType == LMF_DRM_TYPE_VERIMATRIX)
@@ -1105,10 +1593,12 @@ MEDIA_STATUS_T CustomPipeline::_addDemuxElement (void)
   } else {
     gst_element_link (m_stSrcInfo[IDX_MULTI].pSrcElement, m_pstDemuxElement);
   }
+
   /* changbok:Todo check callback compile error */
 //  g_signal_connect(gPipelineInfo.pDemuxElement, "pad-added", G_CALLBACK(_LMF_STATIC_AddNewPad_MTK), &gPipelineInfo);
-  //g_signal_connect(G_OBJECT(m_pstDemuxElement), "pad-added", G_CALLBACK(_AddNewPad),this);
-  /*  changbok - webos refactory - temp [ 기존 ifdef 문 정리 필요 ]
+  g_signal_connect(m_pstDemuxElement, "pad-added", G_CALLBACK(_addNewPad),this);
+
+  /*  changbok - webos refactory - temp [ need to organize NC4.0 ifdef statements ]
       if(m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_FCC)
       {
           g_signal_connect(G_OBJECT(m_pstDemuxElement), "pad-removed", G_CALLBACK(LMF_STATIC_OTHER_RemovePad_for_Fcc), this);
@@ -1117,10 +1607,29 @@ MEDIA_STATUS_T CustomPipeline::_addDemuxElement (void)
   return MEDIA_OK;
 }
 
+gboolean
+CustomPipeline::SetLanguage(gint32 audioNum)
+{
+  GstPad *sinkpad;
+  if ((audioNum == -1)||(audioNum == -2))
+    audioNum = 0;
+  LMF_DBG_PRINT("setting language to %d \r\n", audioNum);
+  LMF_DBG_PRINT("%s.%d: found selector's pad...\n", __FUNCTION__, __LINE__);
+  sinkpad = m_pstAudioSinkPad[audioNum];
+  if (sinkpad)
+  {
+    LMF_DBG_PRINT("%s.%d: Selector current sinkpad was successed...\n", __FUNCTION__, __LINE__);
+    m_audCurrent = audioNum;
+    g_object_set(G_OBJECT(m_pstAudioSelectorElement), "active-pad", sinkpad, NULL);
+  }
+  else
+    return FALSE;
+  return TRUE;
+}
 
 MEDIA_STATUS_T
-CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize,
-                            guint64 pts, MEDIA_DATA_CHANNEL_T esData)
+CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize, guint64 pts,
+                            MEDIA_DATA_CHANNEL_T esData)
 {
   GstBuffer *pAppbuf = NULL;
   GstFlowReturn ret;
@@ -1142,7 +1651,8 @@ CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize,
 }
 
 
-gint64 CustomPipeline::duration () const
+gint64
+CustomPipeline::duration () const
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
@@ -1204,8 +1714,9 @@ CustomPipeline::errorString () const
 
 }
 
-void CustomPipeline::playbinNotifySource (GObject * pObject,
-    GParamSpec * pParam, gpointer u_data)
+void
+CustomPipeline::playbinNotifySource (GObject * pObject, GParamSpec * pParam,
+                                     gpointer u_data)
 {
   CustomPipeline *genericPipeline =
     reinterpret_cast < CustomPipeline * >(u_data);
@@ -1214,7 +1725,7 @@ void CustomPipeline::playbinNotifySource (GObject * pObject,
     GObject *pSrcElement = NULL;
     GstBaseSrc *pBaseSrc = NULL;
     GstElementFactory *pFactory = NULL;
-    gchar *pName = NULL;
+    const gchar *pName = NULL;
 
     // get source element
     g_object_get (pObject, "source", &pSrcElement, NULL);

@@ -81,16 +81,16 @@ private:
   GstElement *m_pstDemuxElement;
 
   /* video element */
-  GstElement *pVideoQueueElement;
-  GstElement *pVideoDecoderElement;
+  GstElement *m_pstVideoQueueElement;
+  GstElement *m_pstVideoDecoderElement;
 
   /* audio element */
-  GstElement *pAudioQueueElement;
-  GstElement *pAudioDecoderElement;
-  GstElement *pAudioSelectorElement;
+  GstElement *m_pstAudioQueueElement;
+  GstElement *m_pstAudioDecoderElement;
+  GstElement *m_pstAudioSelectorElement;
 
-  GstPad *pAudioSrcPad[MAX_TRACK_NUM];
-  GstPad *pAudioSinkPad[MAX_TRACK_NUM];
+  GstPad *m_pstAudioSrcPad[MAX_TRACK_NUM];
+  GstPad *m_pstAudioSinkPad[MAX_TRACK_NUM];
   //GstPad *pVideoPad[MAX_TRACK_NUM]; // To Do (for TS)
 
   /* other element */
@@ -111,6 +111,9 @@ private:
   MEDIA_CUSTOM_SRC_TYPE_T m_eSrcType;
   guint8 m_uNumOfSrc;
   gint m_CheckNum;
+  gint m_audCount;
+  gint  m_audCurrent;
+  gint m_lastPid;
   CUSTOM_BUFFERING_STATE_T m_eNeedFeedData[IDX_MAX];
   CUSTOM_PREROLL_STATE_T m_stPrerollState;
   CUSTOM_CONTAINER_TABLE_T m_stDmxList[4];
@@ -118,12 +121,16 @@ private:
   CustomPipeline ();
 
   guint8 _CheckContentType (void);
-  void _callbackStopFeed (GstElement * element, MEDIA_SRC_T * app);
-  gboolean _callbackSeekData (GstElement * element, guint64 offset,
-                              MEDIA_SRC_T * app);
-  void _callbackStartFeed (GstElement * element, guint32 size,
-                           MEDIA_SRC_T * app);
-  void _addNewPad (GstElement * element, GstPad * pad, gpointer data);
+  gint _transSampleRate(MEDIA_AUDIO_SAMPLERATE_T sampleRate);
+
+  //callback functions
+  static void _callbackStopFeed (GstAppSrc * element, gpointer data /*MEDIA_SRC_T * app*/);
+  static gboolean _callbackSeekData (GstAppSrc * element, guint64 offset, gpointer data /*MEDIA_SRC_T * app*/);
+  static void _callbackStartFeed (GstAppSrc * element, guint32 size,  gpointer data /*MEDIA_SRC_T * app*/);
+
+  static void _addNewPad (GstElement * element, GstPad * pad, gpointer data);
+
+  static void _underrunSignalCb(GstElement *element, gpointer data);
 
   MEDIA_STATUS_T _initValue (void);
   MEDIA_STATUS_T _addSrcElement (guint64 startOffset, const gchar * pSrcPath);
@@ -134,6 +141,9 @@ private:
   MEDIA_STATUS_T _addVideoElement (void);
   MEDIA_STATUS_T _setPropertyOnVideo (void);
   void _addAudioPad (GstStructure * capsStr, GstPad * pad);
+  MEDIA_STATUS_T _addAudioElement(gint audio_num);
+  MEDIA_STATUS_T _addAudioSink(gint audio_num, const gchar *mime_type, GstPad *pad, guint pid_num);
+  MEDIA_STATUS_T _setCapsOnAudioSink(const char *mime_type, GstPad *sinkpad);
   void _addTextPad (GstPad * pad);
 
   static void playbinNotifySource (GObject * o, GParamSpec * p, gpointer d);
@@ -143,9 +153,12 @@ private:
 public:
   ~CustomPipeline ();
 
+  gboolean loadSpi_pre();
+  gboolean loadSpi_post();
+
   //void load();
-  bool load (MEDIA_STREAMOPT_T * streamOpt, MEDIA_FORMAT_T mediaFormatType);
-  bool load (MEDIA_CLIPOPT_T * clipOpt);
+  gboolean load (MEDIA_STREAMOPT_T * streamOpt, MEDIA_FORMAT_T mediaFormatType);
+  gboolean load (MEDIA_CLIPOPT_T * clipOpt);
   MEDIA_STATUS_T load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
                        const gchar * pSrcPath,
                        const gchar * pWritePath,
@@ -155,6 +168,7 @@ public:
   gboolean informationMonitorStartSpi(guint32 timeInterval);
   gboolean positionSpi(gpointer data, gint64 *pos);
 
+  gboolean SetLanguage(gint32 audioNum);
   MEDIA_STATUS_T FeedStream (guint8 * pBuffer, guint32 bufferSize,
                              guint64 pts, MEDIA_DATA_CHANNEL_T esData);
 
