@@ -48,12 +48,12 @@ public:
   static void correctBufferedBytesSpi(gpointer data);
   static void videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
   static void audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
-
   void getStreamsInfoSpi(gpointer data);
   gboolean updateVideoInfoSpi(gpointer data);
+  
   void handleStateMsgPauseSpi_pre(gpointer data);
   void registerUnderrunSignalHandlerSpi(gpointer data);
-  gboolean checkTimeToDecodeSpi(gpointer data);
+  //gboolean checkTimeToDecodeSpi(gpointer data);
 
 
   
@@ -61,8 +61,7 @@ public:
 
   GString errorString () const;
 
-  bool setGstreamerDebugLevel (guint select, gchar * category,
-                               GstDebugLevel level);
+
 
 
 

@@ -155,8 +155,7 @@ public:
   gboolean releaseSeekResource();
 
   gboolean seek (gint64 ms);
-  virtual gboolean seekSpi (gint64 ms)
-  {
+  virtual gboolean seekSpi (gint64 ms){
     return seekCommon(ms);
   }
   gboolean seekCommon(gint64 ms);
@@ -197,12 +196,10 @@ public:
   gfloat playbackRate () const;
   gboolean setPlaybackRate (gfloat rate);
   gboolean setPlaybackRate (gpointer data, gfloat rate);
-  virtual gboolean setPlaybackRateSpi_pre (gpointer data, gfloat rate)
-  {
+  virtual gboolean setPlaybackRateSpi_pre (gpointer data, gfloat rate){
     return true;
   }
-  virtual gboolean setServerSideTrick(gpointer data, gboolean serverSideTrick)
-  {
+  virtual gboolean setServerSideTrick(gpointer data, gboolean serverSideTrick){
     return true;
   }
 
@@ -236,8 +233,8 @@ public:
   Pipeline::State getPlayerState();
   void setPlayerState(Pipeline::State state);
 
-  virtual bool setGstreamerDebugLevel (guint select, gchar * category,
-                                       GstDebugLevel level) = 0;
+  bool setGstreamerDebugLevel (guint select, gchar * category,
+                                       GstDebugLevel level);
   /* start update information APIs */
   static gboolean updatePlayPosition(gpointer data);
   gboolean informationMonitorStop();
@@ -252,17 +249,19 @@ public:
   virtual void getUndecodedSizeSpi(gpointer data, guint64* pVdecBufferedSize, guint64* pAdecBufferedSize)=0;
   void updateTags(gpointer data, GstTagList *pTagList);
   void handlePlayerMsg_AsyncDone(gpointer data);
-  //virtual void getStreamsInfoSpi(gpointer data)= 0; // <-- TODO : Check...!!!!
-  //virtual gboolean updateVideoInfoSpi(gpointer data) = 0; // <-- TODO : Check...!!!!
-  virtual void handleStateMsgPauseSpi_pre(gpointer data) = 0;
- // virtual void correctBufferedBytesSpi(gpointer data) = 0; // <-- TODO : Check...!!!!
-  //virtual void videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data) = 0; // <-- TODO : Check...!!!!
-  //virtual void audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data) = 0; // <-- TODO : Check...!!!!
-  virtual gboolean checkTimeToDecodeSpi(gpointer data) = 0;
+  virtual void getStreamsInfoSpi(gpointer data){}
+  virtual gboolean updateVideoInfoSpi(gpointer data){}
+  virtual void handleStateMsgPauseSpi_pre(gpointer data){}
+  //virtual void correctBufferedBytesSpi(gpointer data){} // TODO check!!!
+  //virtual void videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data){}// TODO check!!!
+  //virtual void audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data){}// TODO check!!!
+  virtual gboolean checkTimeToDecodeSpi(gpointer data){
+    return true;
+  }
   /* start update information APIs */
   gboolean checkPendingEOS(gpointer data);
   gboolean isSeekableMedia(gpointer data);
-
+  
   std::string m_uri;
   std::string m_subtitle_uri;
   /* common */

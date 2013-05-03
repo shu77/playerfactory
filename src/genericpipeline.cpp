@@ -781,6 +781,7 @@ void GenericPipeline::handleStateMsgPauseSpi_pre(gpointer data)
   updateVideoInfoSpi(self);  // <-- TODO : Check...!!!!
   registerUnderrunSignalHandlerSpi(self); // <-- TODO : Check...!!!!
 }
+/*
 gboolean GenericPipeline::checkTimeToDecodeSpi(gpointer data)
 {
   Pipeline *self = reinterpret_cast < Pipeline * >(data);
@@ -788,24 +789,5 @@ gboolean GenericPipeline::checkTimeToDecodeSpi(gpointer data)
   
   return true;
 }
-/*
-* set gstreamer debug LOG level.
 */
-bool GenericPipeline::setGstreamerDebugLevel (guint select, gchar * category,
-    GstDebugLevel level)
-{
-  GError *
-  err;
-  if (!gst_init_check (NULL, NULL, &err)) {
-    std::cout << "Error:" << err->message << endl;
-    g_error_free (err);
-    return false;
-  }
-  if (select == 1) {
-    if (category != NULL)
-      gst_debug_set_threshold_for_name ((const char *) category, level);
-  } else {
-    gst_debug_set_default_threshold (level);
-  }
-  return true;
-}
+

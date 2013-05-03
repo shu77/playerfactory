@@ -1685,38 +1685,6 @@ gboolean CustomPipeline::isReadyToPlaySpi ()
   */
   return TRUE;
 }
-void CustomPipeline::getStreamsInfoSpi(gpointer data)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-  return;
-}
-gboolean CustomPipeline::updateVideoInfoSpi(gpointer data)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-  return true;
-}
-void CustomPipeline::handleStateMsgPauseSpi_pre(gpointer data)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
-void CustomPipeline::correctBufferedBytesSpi(gpointer data)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
-void CustomPipeline::videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
-void CustomPipeline::audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
 
 gboolean CustomPipeline::positionSpi(gpointer data, gint64 *pos)
 {
@@ -1858,28 +1826,5 @@ gboolean CustomPipeline::checkTimeToDecodeSpi(gpointer data)
   return retVal;
 #endif
 }
-
-/*
-* set gstreamer debug LOG level.
-*/
-bool CustomPipeline::setGstreamerDebugLevel (guint select, gchar * category, GstDebugLevel level)
-{
-  GError *err;
-  if (!gst_init_check (NULL, NULL, &err)) {
-    std::cout << "Error:" << err->message << endl;
-    g_error_free (err);
-    return false;
-  }
-  if (select == 1) {
-    if (category != NULL)
-      gst_debug_set_threshold_for_name ((const char *) category, level);
-  } else {
-    gst_debug_set_default_threshold (level);
-  }
-  return true;
-}
-
-
-
 
 //end of file

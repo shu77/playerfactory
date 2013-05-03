@@ -2567,3 +2567,27 @@ BufferController::~BufferController ()
 {
 
 }
+
+
+/*
+* set gstreamer debug LOG level.
+*/
+bool Pipeline::setGstreamerDebugLevel (guint select, gchar * category,
+    GstDebugLevel level)
+{
+  GError *
+  err;
+  if (!gst_init_check (NULL, NULL, &err)) {
+    std::cout << "Error:" << err->message << endl;
+    g_error_free (err);
+    return false;
+  }
+  if (select == 1) {
+    if (category != NULL)
+      gst_debug_set_threshold_for_name ((const char *) category, level);
+  } else {
+    gst_debug_set_default_threshold (level);
+  }
+  return true;
+}
+
