@@ -23,9 +23,9 @@
 /******************************************************************************
    Macro Definitions
 ******************************************************************************/
-#define LMF_DBG_PRINT	g_print
-#define LMF_ERR_PRINT	g_print
-#define LMF_BUFFER_PERI_PRINT	g_print
+#define LMF_DBG_PRINT g_print
+#define LMF_ERR_PRINT g_print
+#define LMF_BUFFER_PERI_PRINT g_print
 
 /*******************************************************************************
   Local Constant Definitions
@@ -50,12 +50,12 @@ CustomPipeline::CustomPipeline ()
   m_stDmxList[2].contentType = MEDIA_CUSTOM_CONTAINER_MPEG2PES;
   strcpy (m_stDmxList[2].pElementName, "mpegpsdemux");
 
-	/* last */
-   m_stDmxList[3].contentType = 0xFF;
-   m_stDmxList[3].pElementName[0] = '\0';
- 
- 
-  
+  /* last */
+  m_stDmxList[3].contentType = 0xFF;
+  m_stDmxList[3].pElementName[0] = '\0';
+
+
+
   /* multi audio track info initialize */
   m_audCount = 0;
   m_audCurrent = 0;
@@ -331,19 +331,19 @@ gboolean CustomPipeline::loadSpi_pre()
 }
 gboolean CustomPipeline::loadSpi_post()
 {
-	MEDIA_CUSTOM_CONTENT_INFO_T contentInfo;
-  
+  MEDIA_CUSTOM_CONTENT_INFO_T contentInfo;
+
   //TODO 1. parse Json
 
-  //TODO 2. make content info 
+  //TODO 2. make content info
 
   //TODO 3. call load ()
   memset(&contentInfo,0x00,sizeof(MEDIA_CUSTOM_CONTENT_INFO_T));
 
   contentInfo.container = MEDIA_CUSTOM_CONTAINER_TS;
-  
+
   load(MEDIA_CUSTOM_SRC_TYPE_PUSH, NULL,NULL, 0, &contentInfo);
-  
+
   return true;
 }
 
@@ -1798,27 +1798,27 @@ gboolean CustomPipeline::isReadyToPlaySpi ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
-/* TODO : 
-    // static player case
-    g_print("[%s:%d] Check Static Case\n", __FUNCTION__, __LINE__);
-    if (GST_STATIC_IsPrerolling(ch))
-        return FALSE;        // prebuffering Сп...
-    else
-        return TRUE;
-*/
+  /* TODO :
+      // static player case
+      g_print("[%s:%d] Check Static Case\n", __FUNCTION__, __LINE__);
+      if (GST_STATIC_IsPrerolling(ch))
+          return FALSE;        // prebuffering Сп...
+      else
+          return TRUE;
+  */
   return TRUE;
 }
 void CustomPipeline::getStreamsInfoSpi(gpointer data)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
-return;
+  return;
 }
 gboolean CustomPipeline::updateVideoInfoSpi(gpointer data)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
-return true;
+  return true;
 }
 void CustomPipeline::handleStateMsgPauseSpi_pre(gpointer data)
 {
@@ -1847,78 +1847,100 @@ gboolean CustomPipeline::checkTimeToDecodeSpi(gpointer data)
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
 #if 0 // TODO ...
-	LMF_STATUS_T retVal = LMF_OK;
-	GstClockTime start_time, base_time, curTime, curTime2;
-    GstClock *cur_clock, *new_clock;
+  LMF_STATUS_T retVal = LMF_OK;
+  GstClockTime start_time, base_time, curTime, curTime2;
+  GstClock *cur_clock, *new_clock;
 
-	MF_ENTER_FUNC();
+  MF_ENTER_FUNC();
 
-	cur_clock = NULL;
-	new_clock = NULL;
-	start_time = base_time = curTime = curTime2 = 0;
+  cur_clock = NULL;
+  new_clock = NULL;
+  start_time = base_time = curTime = curTime2 = 0;
 
-	if ((gPipelineInfo[ch].contentInfo.ptsToDecode > 0) && (gPipelineInfo[ch].srcType == LMF_MEDIA_SRC_TYPE_ES))
-	{
-		g_print("[%s:%d][Ch:%d] set start pts time = %lld\n", __FUNCTION__, __LINE__, ch, gPipelineInfo[ch].contentInfo.ptsToDecode);
+  if ((gPipelineInfo[ch].contentInfo.ptsToDecode > 0) && (gPipelineInfo[ch].srcType == LMF_MEDIA_SRC_TYPE_ES))
+  {
+    g_print("[%s:%d][Ch:%d] set start pts time = %lld\n", __FUNCTION__, __LINE__, ch, gPipelineInfo[ch].contentInfo.ptsToDecode);
 
-		base_time = gst_element_get_base_time(gPipelineInfo[ch].pPipeline);
-		start_time = gst_element_get_start_time(gPipelineInfo[ch].pPipeline);
-		cur_clock = gst_element_get_clock (gPipelineInfo[ch].pPipeline);
+    base_time = gst_element_get_base_time(gPipelineInfo[ch].pPipeline);
+    start_time = gst_element_get_start_time(gPipelineInfo[ch].pPipeline);
+    cur_clock = gst_element_get_clock (gPipelineInfo[ch].pPipeline);
 
-		if (cur_clock) {
-		  curTime = gst_clock_get_time (cur_clock);
-		  curTime2 = curTime - gst_element_get_base_time (gPipelineInfo[ch].pPipeline);
-		  gst_object_unref (cur_clock);
-		}
+    if (cur_clock) {
+      curTime = gst_clock_get_time (cur_clock);
+      curTime2 = curTime - gst_element_get_base_time (gPipelineInfo[ch].pPipeline);
+      gst_object_unref (cur_clock);
+    }
 
-		g_print("[Before] base_time = %lld, start_time = %lld, cur = %lld, %lld\n", base_time, start_time, curTime, curTime2);
+    g_print("[Before] base_time = %lld, start_time = %lld, cur = %lld, %lld\n", base_time, start_time, curTime, curTime2);
 
-		start_time += gPipelineInfo[ch].contentInfo.ptsToDecode;
+    start_time += gPipelineInfo[ch].contentInfo.ptsToDecode;
 
-		gst_element_set_start_time(gPipelineInfo[ch].pPipeline, start_time);
-		//gst_element_set_base_time(gPipelineInfo[ch].pPipeline, GST_CLOCK_TIME_NONE);
+    gst_element_set_start_time(gPipelineInfo[ch].pPipeline, start_time);
+    //gst_element_set_base_time(gPipelineInfo[ch].pPipeline, GST_CLOCK_TIME_NONE);
 
-		if (gPipelineInfo[ch].pAudioDecoderElement != NULL)
-			gst_element_set_start_time(gPipelineInfo[ch].pAudioDecoderElement, start_time);
+    if (gPipelineInfo[ch].pAudioDecoderElement != NULL)
+      gst_element_set_start_time(gPipelineInfo[ch].pAudioDecoderElement, start_time);
 
-		if (gPipelineInfo[ch].pVideoDecoderElement != NULL)
-			gst_element_set_start_time(gPipelineInfo[ch].pVideoDecoderElement, start_time);
+    if (gPipelineInfo[ch].pVideoDecoderElement != NULL)
+      gst_element_set_start_time(gPipelineInfo[ch].pVideoDecoderElement, start_time);
 
-		if (gPipelineInfo[ch].pAudioQueueElement != NULL)
-			gst_element_set_start_time(gPipelineInfo[ch].pAudioQueueElement, start_time);
+    if (gPipelineInfo[ch].pAudioQueueElement != NULL)
+      gst_element_set_start_time(gPipelineInfo[ch].pAudioQueueElement, start_time);
 
-		if (gPipelineInfo[ch].pVideoQueueElement != NULL)
-			gst_element_set_start_time(gPipelineInfo[ch].pVideoQueueElement, start_time);
+    if (gPipelineInfo[ch].pVideoQueueElement != NULL)
+      gst_element_set_start_time(gPipelineInfo[ch].pVideoQueueElement, start_time);
 
-		if (gPipelineInfo[ch].pDemuxElement!= NULL)
-			gst_element_set_start_time(gPipelineInfo[ch].pDemuxElement, start_time);
+    if (gPipelineInfo[ch].pDemuxElement!= NULL)
+      gst_element_set_start_time(gPipelineInfo[ch].pDemuxElement, start_time);
 
-		if (gPipelineInfo[ch].srcInfo[IDX_VIDEO].pSrcElement != NULL)
-			gst_element_set_start_time(gPipelineInfo[ch].srcInfo[IDX_VIDEO].pSrcElement, start_time);
+    if (gPipelineInfo[ch].srcInfo[IDX_VIDEO].pSrcElement != NULL)
+      gst_element_set_start_time(gPipelineInfo[ch].srcInfo[IDX_VIDEO].pSrcElement, start_time);
 
-		if (gPipelineInfo[ch].srcInfo[IDX_AUDIO].pSrcElement != NULL)
-			gst_element_set_start_time(gPipelineInfo[ch].srcInfo[IDX_AUDIO].pSrcElement, start_time);
+    if (gPipelineInfo[ch].srcInfo[IDX_AUDIO].pSrcElement != NULL)
+      gst_element_set_start_time(gPipelineInfo[ch].srcInfo[IDX_AUDIO].pSrcElement, start_time);
 
-		gPipelineInfo[ch].contentInfo.ptsToDecode = 0;
+    gPipelineInfo[ch].contentInfo.ptsToDecode = 0;
 
-		base_time = start_time = curTime = curTime2 = 0;
+    base_time = start_time = curTime = curTime2 = 0;
 
-		base_time = gst_element_get_base_time(gPipelineInfo[ch].pPipeline);
-		start_time = gst_element_get_start_time(gPipelineInfo[ch].pPipeline);
-		cur_clock = gst_element_get_clock (gPipelineInfo[ch].pPipeline);
+    base_time = gst_element_get_base_time(gPipelineInfo[ch].pPipeline);
+    start_time = gst_element_get_start_time(gPipelineInfo[ch].pPipeline);
+    cur_clock = gst_element_get_clock (gPipelineInfo[ch].pPipeline);
 
-		if (cur_clock) {
-		  curTime = gst_clock_get_time (cur_clock);
-		  curTime2 = curTime - gst_element_get_base_time (gPipelineInfo[ch].pPipeline);
-		  gst_object_unref (cur_clock);
-		}
+    if (cur_clock) {
+      curTime = gst_clock_get_time (cur_clock);
+      curTime2 = curTime - gst_element_get_base_time (gPipelineInfo[ch].pPipeline);
+      gst_object_unref (cur_clock);
+    }
 
-		g_print("[After] base_time = %lld, start_time = %lld, cur = %lld, %lld\n", base_time, start_time, curTime, curTime2);
-	}
+    g_print("[After] base_time = %lld, start_time = %lld, cur = %lld, %lld\n", base_time, start_time, curTime, curTime2);
+  }
 
-	return retVal;
+  return retVal;
 #endif
 }
+
+/*
+* set gstreamer debug LOG level.
+*/
+bool CustomPipeline::setGstreamerDebugLevel (guint select, gchar * category, GstDebugLevel level)
+{
+  GError *err;
+  if (!gst_init_check (NULL, NULL, &err)) {
+    std::cout << "Error:" << err->message << endl;
+    g_error_free (err);
+    return false;
+  }
+  if (select == 1) {
+    if (category != NULL)
+      gst_debug_set_threshold_for_name ((const char *) category, level);
+  } else {
+    gst_debug_set_default_threshold (level);
+  }
+  return true;
+}
+
+
 
 
 //end of file

@@ -173,9 +173,9 @@ public:
   void correctBufferedBytesSpi(gpointer data);
   static void videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
   static void audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
-  gboolean #if 0
 
-
+  gboolean checkTimeToDecodeSpi(gpointer data);
+  
   gboolean SetLanguage(gint32 audioNum);
   MEDIA_STATUS_T FeedStream (guint8 * pBuffer, guint32 bufferSize,
                              guint64 pts, MEDIA_DATA_CHANNEL_T esData);
@@ -192,6 +192,8 @@ public:
 
   //Error error() const;
   GString errorString () const;
+
+    bool setGstreamerDebugLevel (guint select, gchar * category,  GstDebugLevel level);
 
 
 };
