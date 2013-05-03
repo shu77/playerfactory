@@ -44,6 +44,7 @@ public:
 
   virtual gboolean play (int rate = 1) = 0;
   virtual gboolean setPlaybackRate (gfloat rate) = 0;
+  virtual gboolean seek (guint64 posMsec) = 0;
 
   /*
      virtual void stop(Pipeline::bsp_t pipeline) = 0;

@@ -89,6 +89,7 @@ main (int argc, char **argv)
     std::cout << " 11. load (playbin)\n";
     std::cout << " 12. play \n";
     std::cout << " 13. pause \n";
+    std::cout << " 16. seek \n";
     std::cout << " 17. setPlaybackRate \n";
     std::cout << " 18. unload \n";
     std::cout << " 19. get duration \n";
@@ -161,6 +162,18 @@ main (int argc, char **argv)
     case 13:
       player->pause ();
       break;
+    case 16:
+    {
+      std::string num;
+      gint64 temp;
+      num.clear ();
+      std::cout << "Input seek position (mSec):";
+      getline (std::cin, num);
+      temp = std::atof (num.c_str ());
+      std::cout << "seek position inputed : " << temp << endl;
+      player->seek (temp); //(reinterpret_cast<float>temp);
+      break;
+    }      
     case 17:
     {
       std::string num;

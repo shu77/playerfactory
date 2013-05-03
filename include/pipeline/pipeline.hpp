@@ -146,10 +146,22 @@ public:
   gboolean load (const std::string optionString);
   virtual gboolean loadSpi_post () = 0;
   gboolean unload ();
+  virtual gboolean unloadSpi () = 0;
   gboolean play (int rate = 1);
   gboolean pause ();
   gboolean stop ();
+  
+  gboolean createSeekResource();
+  gboolean releaseSeekResource();
+
   gboolean seek (gint64 ms);
+  virtual gboolean seekSpi (gint64 ms)
+  {
+    return seekCommon(ms);
+  }
+  gboolean seekCommon(gint64 ms);
+  gboolean seekCommon_core (guint64 posMs, GstSeekFlags flag, GError **ppError); // common seek method. sub
+
   gboolean isReadyToPlay ();
   Pipeline::State getPendingPipelineState ();
   virtual gboolean isReadyToPlaySpi () = 0;
@@ -185,6 +197,15 @@ public:
   gfloat playbackRate () const;
   gboolean setPlaybackRate (gfloat rate);
   gboolean setPlaybackRate (gpointer data, gfloat rate);
+  virtual gboolean setPlaybackRateSpi_pre (gpointer data, gfloat rate)
+  {
+    return true;
+  }
+  virtual gboolean setServerSideTrick(gpointer data, gboolean serverSideTrick)
+  {
+    return true;
+  }
+
   //end seek,trick
 
   gint64 duration (gpointer data);
@@ -262,8 +283,8 @@ public:
   gboolean m_seekable;        /* seekable stream */
   gboolean m_bSeekableDuration;       /* check for live stream case */
   gboolean m_bSeekableIndex;  /* check for gst element not seekable msg */
-  gint64 m_duration;          /* total stream duration */
-  mutable gint64 m_currentPosition;   /* current position time */
+  gint64 m_duration;          /* total stream duration - in nano sec */
+  mutable gint64 m_currentPosition;   /* current position time - in nano sec */ 
   //gint64                      SessionPlayPositionStatic; // -> only custom pipeline
   //gint64                      SessionCurrentPTSStatic;   // -> only custom pipeline
   gint m_durationQueryCount;  /* timeout duration query count */
@@ -387,7 +408,7 @@ public:
   guint8 bufferMaxPercent;
 
   /* pending seek for resume play */
-  gint64 pendingSeekPosition;
+  //gint64 pendingSeekPosition; // -> delete with 재구조화
 
   /* 버퍼링 상태에 따른 재생 컨트롤시 사용 */
   gint32 bufferProgress;

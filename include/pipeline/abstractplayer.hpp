@@ -32,13 +32,17 @@ public:
 
   Pipeline::bsp_t getPipeline ();
 
-  //void load();
   gboolean load (const std::string optionString);
   gboolean unload ();
   gboolean play (int rate);
   gboolean pause ();
   gboolean setPlaybackRate (gfloat rate);
-
+  gboolean seek (guint64 posMsec);
+  gboolean seekSpiCommon (guint64 posMsec);
+  virtual gboolean seekSpi (guint64 posMsec)
+  {
+    return seekSpiCommon(posMsec);
+  }
 
   gint64 duration () const;
   gint64 position () const;
@@ -49,7 +53,6 @@ public:
   gboolean isSeekable () const;
   gfloat playbackRate () const;
 
-  //Error error() const;
   GString errorString () const;
 
   //Pipeline::State m_playertState;   /* user input control status */ //move down pipeline layer.

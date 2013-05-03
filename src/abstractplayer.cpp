@@ -137,6 +137,63 @@ gboolean AbstractPlayer::unload ()
   return true;
 }
 
+gboolean AbstractPlayer::seek (guint64 posMsec)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  return this->seekSpi(posMsec);
+}
+
+gboolean AbstractPlayer::seekSpiCommon (guint64 posMsec)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  gboolean retVal = false;
+  Pipeline::bsp_t pipeline = getPipeline ();
+
+  g_print("[%s] check SEEKABLE \n ", __FUNCTION__);
+  if ((pipeline->m_bPlaybackStarted == TRUE) && pipeline->isSeekable())
+  {
+    g_print("[%s] seekable ok -> try to seek \n ", __FUNCTION__);
+
+    retVal = pipeline->seek(posMsec);
+    if(retVal == true)
+    {
+      g_print("[%s] - seek DONE. \n ", __FUNCTION__);
+      //pipeline->pendingSeekPosition = -1;
+      retVal = true;
+    }
+    else
+    {
+      g_print("[%s] - seek not ready or failed. \n ", __FUNCTION__);
+      //pipeline->pendingSeekPosition = -1;
+    }
+#if 0 // deleted with 재구조화.
+    else if(retVal == LMF_NOT_READY)
+    {
+      g_print("[%s] - seek not ready. \n ", __FUNCTION__);
+      pipeline->pendingSeekPosition = -1;
+    }
+    else
+    {
+      g_print("[%s] - seek faild -> pending seek position\n", __FUNCTION__);
+      pipeline->pendingSeekPosition = posMsec;
+    }
+#endif
+  }
+  else
+  {
+    g_print("[%s] not SEEKABLE or play not started yet. \n", __FUNCTION__);
+#if 0
+    if(pipeline->m_bPlaybackStarted != TRUE)
+    {
+      g_print("[%s] seek command. before play start. \n", __FUNCTION__);
+      g_print("[%s] pendingSeekPosition = %d \n", __FUNCTION__, posMs);
+      pipeline->pendingSeekPosition = posMsec;
+    }
+#endif
+  }
+  return retVal;  // meaningful 한 return 값을 전달하도록 수정.
+}
+
 gboolean AbstractPlayer::setPlaybackRate (gfloat rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");

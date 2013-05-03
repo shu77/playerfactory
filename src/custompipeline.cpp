@@ -77,7 +77,7 @@ CustomPipeline::CustomPipeline ()
 
   // connect source notify.
   g_signal_connect (G_OBJECT (m_pipeHandle), "notify::source",
-                    G_CALLBACK (playbinNotifySource), this);
+                    G_CALLBACK (notifySourceCallbackFunc), this);
 
   // connect volume notify.
   double volume = 1.0;
@@ -98,86 +98,12 @@ CustomPipeline::~CustomPipeline ()
 }
 
 
-void
-CustomPipeline::unload ()
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-}
-
-bool CustomPipeline::play (int rate)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-  return true;
-}
-
-gboolean CustomPipeline::positionSpi(gpointer data, gint64 *pos)
-{
-  Pipeline *self = reinterpret_cast < Pipeline * >(data);
-  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
-  gint64 position = 0;
-  char *pPlayerName = gst_element_get_name(self->m_pipeHandle);
-
-  if((pPlayerName != NULL) && (!strcmp("static-player", pPlayerName)))
-  {
-    /*
-    * we found 4-second block issue when we play HLS content.
-    * MTK said he put wait mechanism for Netlfix certification when we get current pts
-    * so, below code is changed to  [if(lph->SessionState != PlayingState)] from [if(lph->SessionState == PausedState)]
-    * for resolving 4-second block issue.
-    */
-
-    if (self->m_gstPipelineState != PlayingState)
-    {
-      //TODO pos = self->m_SessionPlayPositionStatic;
-    }
-    else
-    {
-      //TODO if (_STATIC_GetPlayInfo(pPlayerHandle->ch, &pos) != LMF_OK)
-      {
-        pos = 0;
-      }
-      //TODO self->m_SessionPlayPositionStatic = pos;
-    }
-  }
-  else
-  {
-    GstFormat queryFormat = GST_FORMAT_TIME;
-#if (GST_VERSION_MAJOR >= 1)
-    if(!gst_element_query_position(self->m_pipeHandle, queryFormat, &position))
-#else
-    if(!gst_element_query_position(self->m_pipeHandle, &queryFormat, &position))
-#endif
-      position = 0;
-  }
-  if (pPlayerName != NULL)
-    g_free(pPlayerName);
-
-  *pos = position;
-  return true;
-}
-
-gboolean CustomPipeline::informationMonitorStartSpi(guint32 timeInterval)
-{
-  if ((m_pipeHandle == NULL) || (GST_IS_ELEMENT(m_pipeHandle) == FALSE))
-  {
-    std::cout << "Error. Gstreamer Player Handle is NULL!!!  " << endl;
-    return false;
-  }
-
-  //TODO if(_STATIC_COMM_bNeedCheckState(pPlayerHandle->ch))
-  {
-    //g_print("[%s] Buffering Timer Start!(Interval: 200ms) - update buffering info.\n", __FUNCTION__);
-    //m_bufferingTimerId = g_timeout_add(200, (GSourceFunc)updateBufferingInfo, this);
-  }
-  return true;
-}
 
 MEDIA_STATUS_T
 CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
                       const gchar * pSrcPath,
                       const gchar * pWritePath,
-                      guint64 startOffset, MEDIA_CUSTOM_CONTENT_INFO_T * pstContentInfo)
+                      guint64 startOffset, MEDIA_CUSTOM_CONTENT_INFO_T * pstContentInfo) //  TODO:: move to loadSpi_post() // TODO:: remove arguments
 {
 
   MEDIA_STATUS_T retVal = MEDIA_OK;
@@ -306,48 +232,6 @@ CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
   return MEDIA_OK;
 }
 
-gboolean CustomPipeline::loadSpi_pre()
-{
-
-  /* initial parameter in customer pipeline */
-  if (MEDIA_OK != _initValue ()) {
-    return false;
-  } else {
-
-    /* create pipeline */
-    m_pstPipeline = gst_pipeline_new ("custom-player");
-
-    if (!m_pstPipeline)
-    {
-      LMF_DBG_PRINT ("[%s:%d] pipeline could not be created!!!\n", __FUNCTION__,  __LINE__);
-      return false;
-    }
-  }
-
-  //register custom pipeline handle
-  m_pipeHandle = m_pstPipeline;
-
-  return true;
-}
-gboolean CustomPipeline::loadSpi_post()
-{
-  MEDIA_CUSTOM_CONTENT_INFO_T contentInfo;
-
-  //TODO 1. parse Json
-
-  //TODO 2. make content info
-
-  //TODO 3. call load ()
-  memset(&contentInfo,0x00,sizeof(MEDIA_CUSTOM_CONTENT_INFO_T));
-
-  contentInfo.container = MEDIA_CUSTOM_CONTAINER_TS;
-
-  load(MEDIA_CUSTOM_SRC_TYPE_PUSH, NULL,NULL, 0, &contentInfo);
-
-  return true;
-}
-
-
 guint8
 CustomPipeline::_CheckContentType (void)
 {
@@ -450,7 +334,7 @@ CustomPipeline::_addSrcElement_Push (void)
    m_stContentInfo.videoDataInfo.bufferMinLevel,
    m_stContentInfo.videoDataInfo.prebufferLevel);
   LMF_DBG_PRINT
-  ("[PUSH][BUFFER LEVEL][ADJ] MAX : %u (MIN : %u bytes / %u% ), PRE:%u\n",
+  ("[PUSH][BUFFER LEVEL][ADJ] MAX : %"G_GUINT32_FORMAT" (MIN : %"G_GUINT32_FORMAT" bytes / %"G_GUINT32_FORMAT" ), PRE:%"G_GUINT32_FORMAT"\n",
    bufferMaxLevel, m_stContentInfo.videoDataInfo.bufferMinLevel,
    bufferMinPercent, preBufferLevel);
 
@@ -1644,62 +1528,57 @@ CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize, guint64 pts,
   /* changbok:Todo  */
 }
 
-
-gint64
-CustomPipeline::duration () const
+/* --------------------- start basic pipeline control --------------------------*/
+gboolean CustomPipeline::loadSpi_pre()
 {
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
+  /* initial parameter in customer pipeline */
+  if (MEDIA_OK != _initValue ()) {
+    return false;
+  } else {
+
+    /* create pipeline */
+    m_pstPipeline = gst_pipeline_new ("custom-player");
+
+    if (!m_pstPipeline)
+    {
+      LMF_DBG_PRINT ("[%s:%d] pipeline could not be created!!!\n", __FUNCTION__,  __LINE__);
+      return false;
+    }
+  }
+
+  //register custom pipeline handle
+  m_pipeHandle = m_pstPipeline;
+
+  return true;
+}
+gboolean CustomPipeline::loadSpi_post()
+{
+  MEDIA_CUSTOM_CONTENT_INFO_T contentInfo;
+
+  //TODO 1. parse Json
+
+  //TODO 2. make content info
+
+  //TODO 3. call load ()
+  memset(&contentInfo,0x00,sizeof(MEDIA_CUSTOM_CONTENT_INFO_T));
+
+  contentInfo.container = MEDIA_CUSTOM_CONTAINER_TS;
+
+  load(MEDIA_CUSTOM_SRC_TYPE_PUSH, NULL,NULL, 0, &contentInfo);
+
+  return true;
 }
 
-gint64
-CustomPipeline::position () const
+gboolean CustomPipeline::unloadSpi()
 {
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
+  //TODO if(!pPipeContainerHandle->bUsePlaybin)
+  {
+    //STATIC_COMM_CheckRefCount(pPipeContainerHandle->ch);
+  }
+  return true;
 }
-
-gint
-CustomPipeline::volume () const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
-
-gboolean
-CustomPipeline::isMuted () const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
-
-gboolean
-CustomPipeline::isAudioAvailable () const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
-
-gboolean
-CustomPipeline::isVideoAvailable () const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
-
-gboolean
-CustomPipeline::isSeekable () const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
-
-gfloat
-CustomPipeline::playbackRate () const
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-}
+/* --------------------- end basic pipeline control --------------------------*/
 
 GString
 CustomPipeline::errorString () const
@@ -1707,9 +1586,22 @@ CustomPipeline::errorString () const
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
 }
+#if 0 //TODO...
+gboolean CustomPipeline::seekSpi (gint64 ms)
+{
+#if 0
+    if (pipeline->lmfSrcType == LMF_MEDIA_SRC_TYPE_MPEG_DASH)
+    {
+      retVal = LMF_STATIC_COMM_Seek(ch, (posMsec * GST_MSECOND));
+      pipeline->pendingSeekPosition = -1;
+      return retVal;
+    }
+#endif // TODO :: custom pipeline
+}
+#endif
 
 void
-CustomPipeline::playbinNotifySource (GObject * pObject, GParamSpec * pParam,
+CustomPipeline::notifySourceCallbackFunc (GObject * pObject, GParamSpec * pParam,
                                      gpointer u_data)
 {
   CustomPipeline *genericPipeline =
@@ -1769,21 +1661,6 @@ CustomPipeline::playbinNotifySource (GObject * pObject, GParamSpec * pParam,
 
 }
 
-void
-CustomPipeline::handleVolumeChange (GObject * pObject, GParamSpec * pParam,
-                                    gpointer u_data)
-{
-
-
-}
-
-void
-CustomPipeline::handleMutedChange (GObject * pObject, GParamSpec * pParam,
-                                   gpointer u_data)
-{
-
-
-}
 void CustomPipeline::setInterleavingTypeSpi(gpointer data, GstObject *pObj, gint stream, gpointer user_data)
 {
 
@@ -1839,6 +1716,68 @@ void CustomPipeline::audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
 
+}
+
+gboolean CustomPipeline::positionSpi(gpointer data, gint64 *pos)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  gint64 position = 0;
+  char *pPlayerName = gst_element_get_name(self->m_pipeHandle);
+
+  if((pPlayerName != NULL) && (!strcmp("static-player", pPlayerName)))
+  {
+    /*
+    * we found 4-second block issue when we play HLS content.
+    * MTK said he put wait mechanism for Netlfix certification when we get current pts
+    * so, below code is changed to  [if(lph->SessionState != PlayingState)] from [if(lph->SessionState == PausedState)]
+    * for resolving 4-second block issue.
+    */
+
+    if (self->m_gstPipelineState != PlayingState)
+    {
+      //TODO pos = self->m_SessionPlayPositionStatic;
+    }
+    else
+    {
+      //TODO if (_STATIC_GetPlayInfo(pPlayerHandle->ch, &pos) != LMF_OK)
+      {
+        pos = 0;
+      }
+      //TODO self->m_SessionPlayPositionStatic = pos;
+    }
+  }
+  else
+  {
+    GstFormat queryFormat = GST_FORMAT_TIME;
+#if (GST_VERSION_MAJOR >= 1)
+    if(!gst_element_query_position(self->m_pipeHandle, queryFormat, &position))
+#else
+    if(!gst_element_query_position(self->m_pipeHandle, &queryFormat, &position))
+#endif
+      position = 0;
+  }
+  if (pPlayerName != NULL)
+    g_free(pPlayerName);
+
+  *pos = position;
+  return true;
+}
+
+gboolean CustomPipeline::informationMonitorStartSpi(guint32 timeInterval)
+{
+  if ((m_pipeHandle == NULL) || (GST_IS_ELEMENT(m_pipeHandle) == FALSE))
+  {
+    std::cout << "Error. Gstreamer Player Handle is NULL!!!  " << endl;
+    return false;
+  }
+
+  //TODO if(_STATIC_COMM_bNeedCheckState(pPlayerHandle->ch))
+  {
+    //g_print("[%s] Buffering Timer Start!(Interval: 200ms) - update buffering info.\n", __FUNCTION__);
+    //m_bufferingTimerId = g_timeout_add(200, (GSourceFunc)updateBufferingInfo, this);
+  }
+  return true;
 }
 
 

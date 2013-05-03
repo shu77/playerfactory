@@ -28,8 +28,7 @@ public:
 
   gboolean playSpi (int rate);
   gboolean loadSpi (const std::string optionString);
-//      void loadSpi(MEDIA_STREAMOPT_T *streamOpt, MEDIA_FORMAT_T mediaFormatType);
-//      void loadSpi(MEDIA_CLIPOPT_T *clipOpt);
+  gboolean seekSpi (guint64 posMsec);
 
   gboolean unloadSpi ();
   gboolean pauseSpi ();

@@ -83,8 +83,8 @@ bool GenericPipeline::handleURI ()
     std::cout << "URI = " << filename << endl;
 
     if (!strncmp (filename.c_str(), "mms://", strlen ("mms://"))) {
-      // fix for maxdome FF issue. (set serverside tirck enable at mms streamming.)
-      //TODO: BASIC_PLYR_CTRL_SetMmsURI(pPipeContainerHandle, true);
+      // set serverside tirck enable at mms streamming.
+      m_bServerSideTrick = true; // isMmsURI
     }
     // DQMS 1206-00199 (mlm can't filtering this)
     // not supported known type media filtering.
@@ -208,6 +208,45 @@ gboolean GenericPipeline::loadSpi_post ()
   return true;
 }
 
+gboolean GenericPipeline::unloadSpi()
+{
+
+  return true;
+}
+
+gboolean GenericPipeline::seekSpi (gint64 posMs)
+{
+#if 0 //TODO.. DLNA.. seek 보정.. 
+		// Check DLNA + PS + seek not ready case.
+		if(_LMF_PLYR_CTRL_CheckSeekNotReady(pPlayerHandle, &posMs) == LMF_NOT_READY)
+		{
+			//pPlayerHandle->LastSeekPTS = -1;
+			//return LMF_NOT_READY;
+			position = posMs * GST_MSECOND;
+			LMF_DBG_PRINT("[%s:%d] Seek to %lld(%llu)\n", __FUNCTION__, __LINE__, position, position );
+		}
+#endif
+		if ((m_duration > 0) &&
+			((posMs * GST_MSECOND) >= m_duration) )
+		{
+#if 0 //TODO.. DLNA 특정 case 처리 
+			// dlna duration보다 demuxer에서 간혹 duration을 작게 올려주면 마지막 부분이 seek안되는 문제 fix.
+			if(pPlayerHandle->isDLNA == TRUE && pPlayerHandle->dlna_duration > pPlayerHandle->SessionDuration && position<pPlayerHandle->dlna_duration )
+			{// seek pos 위치가 demuxer duration 넘어서더라도. dlna_duration 범위 내면 seek.
+				return seekCommon(posMs);
+			}
+#endif
+			g_print("[%s:%d] seek pos >= dur (%"G_GINT64_FORMAT" ns)\n", __FUNCTION__, __LINE__, m_duration);
+
+			// GStreamer 에는 seek 명령 내리지 않고, pause 시키고 position 값만 변경하여서
+			// UpdatePlayPosition 에서 EOF 처리되도록 함.
+			m_bEndOfFile = TRUE;
+			return true;
+		}
+		else
+			return seekCommon(posMs);
+
+}
 /* for prebuffering action */
 gboolean GenericPipeline::isReadyToPlaySpi ()
 {
@@ -220,6 +259,80 @@ gboolean GenericPipeline::isReadyToPlaySpi ()
   }
   //TODO for prebuffering //return false;   // prebuffering 중...
   return true;                  //temp..
+}
+
+gboolean GenericPipeline::setServerSideTrick(gpointer data, gboolean serverSideTrick)
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  Pipeline *
+  self = reinterpret_cast < Pipeline * >(data);
+
+  GstElement *pAdecsink = NULL;
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. LMF Player Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return FALSE;
+  }
+  g_object_get (G_OBJECT(self->m_pipeHandle), "audio-sink", &pAdecsink, NULL);
+  if (pAdecsink != NULL)
+  {
+    if(serverSideTrick)
+    {
+      g_print ("[%s] setting serverside-trickplay = TRUE !!!!! \r\n", __FUNCTION__);
+      g_object_set(G_OBJECT(pAdecsink), "serverside-trickplay", TRUE, NULL);
+    }
+    else
+    {
+      g_print ("[%s] setting serverside-trickplay = FALSE !!!!! \r\n", __FUNCTION__);
+      g_object_set(G_OBJECT(pAdecsink), "serverside-trickplay", FALSE, NULL);
+    }
+    gst_object_unref(pAdecsink);
+  }
+  else
+  {
+    g_print ("[%s] no audio sink!!!!! \r\n", __FUNCTION__);
+    return FALSE;
+  }
+  return TRUE;
+}
+
+gboolean GenericPipeline::setPlaybackRateSpi_pre (gpointer data, gfloat rate){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  gboolean	retVal = true;
+  Pipeline *
+  self = reinterpret_cast < GenericPipeline * >(data);
+
+  if ((self == NULL) ||
+  (self->m_pipeHandle == NULL) ||
+  (GST_IS_ELEMENT(self->m_pipeHandle) == FALSE))
+  {
+    g_print("%s:%d] Error. Player Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+
+  if (!self->compareDouble(self->m_playbackRate, rate))
+  {
+    self->m_playbackRate = rate;
+    if (self->m_pipeHandle)
+    {
+      if (rate < (double)(0.0)) /* FastRewind */
+      {
+        if (self->m_bServerSideTrick) // support for server side trick playback.
+          self->setServerSideTrick(self, TRUE);
+      } /* FastRewind */
+      else if (self->compareDouble(rate, 1.0)) /* x1.0 */
+      {
+        if(self->m_bServerSideTrick) // fix for maxdome FF20120112
+          self->setServerSideTrick(self, FALSE);
+      } /* x1.0 */
+      else /* FastForward */
+      {
+        if(self->m_bServerSideTrick) // fix for maxdome FF20120112
+          self->setServerSideTrick(self, TRUE);
+      } /* FastForward */
+    }
+  }
+  return retVal;
 }
 
 GString GenericPipeline::errorString () const

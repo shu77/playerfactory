@@ -29,6 +29,8 @@ public:
   gboolean loadSpi (const std::string optionString);
   gboolean unloadSpi ();
   gboolean pauseSpi ();
+  //gboolean seekSpi (guint64 ms); // playbin using common seek method.
+
   gboolean setPlaybackRateSpi (gfloat rate);
   gboolean isReadyToPlay ();
   Pipeline::State getPendingPipelineState ();

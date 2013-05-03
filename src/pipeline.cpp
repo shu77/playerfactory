@@ -26,7 +26,6 @@ using namespace mediapipeline;
 
 Pipeline::Pipeline ()
 {
-
   m_gstPipelineState = StoppedState;
   m_pendingState = StoppedState;
   m_busHandler = NULL;
@@ -45,7 +44,8 @@ Pipeline::Pipeline ()
   m_blockByVideoSink = 0;
   m_uri.clear ();
   m_subtitle_uri.clear ();
-
+  m_bServerSideTrick = false;
+    
   /* create buffer controller class */
   BufferController::bsp_t buffercontrol = getBufferController ();
   buffercontrol.reset (new BufferController ());
@@ -73,8 +73,6 @@ Pipeline::~Pipeline ()
 gboolean Pipeline::load (const std::string optionString)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
-
-
   /* get pipline options handler */
   Options::bsp_t options = getOptionsHandler ();
   /* save values to options handler */
@@ -83,44 +81,34 @@ gboolean Pipeline::load (const std::string optionString)
     std::cout << "options Json format invalid !!!" << endl;
     return false;
   }
-
-
   if (this->loadSpi_pre () == false)    //custom pipeline control (pre) < create gstreamer pipeline here. > m_pipeHandle
     return false;
   /* common gstreamer control start */
-
   std::cout << " >> load " << endl;
-
   connectGstBusCallback ();
+  createSeekResource();
 
   std::cout << "set pipe to NULL" <<endl;
-
   gst_element_set_state (m_pipeHandle, GST_STATE_NULL);
-
   cout << "set buffer size" << endl;
   // default buffer-size (see gstqueue2)
   g_object_set (G_OBJECT (m_pipeHandle), "buffer-size",
                 (gint) (MEDIAPIPE_BUFFER_SIZE), NULL);
   g_object_set (G_OBJECT (m_pipeHandle), "buffer-duration", (gint64) (0), NULL);
-
   // connect volume notify.
   double
   volume = 1.0;
   g_object_get (G_OBJECT (m_pipeHandle), "volume", &volume, NULL);
   m_volume = int (volume * 100);
-
   g_signal_connect (G_OBJECT (m_pipeHandle), "notify::volume",
                     G_CALLBACK (handleVolumeChange), this);
   if (m_playbinVersion == 2)
     g_signal_connect (G_OBJECT (m_pipeHandle), "notify::mute",
                       G_CALLBACK (handleMutedChange), this);
-
   cout << "pipeline] create finish " << endl;
-
   /* common gstreamer control end */
   if (this->loadSpi_post () == false)   //custom pipeline control (post)
     return false;
-
   return true;
 }
 
@@ -135,8 +123,12 @@ gboolean Pipeline::play (int rate)
       m_pendingState = m_gstPipelineState = StoppedState;
 
       stateChanged (m_gstPipelineState);
-    } else
+      g_print("[%s:%d]State change ERR : SessionState changing to Stopped State\n", __FUNCTION__, __LINE__);
+    } 
+    else{
+			g_print("[%s][Set STATE -> PLAYING] Request OK \n", __FUNCTION__);
       return true;
+    }
   }
   return false;
 
@@ -150,7 +142,8 @@ gboolean Pipeline::unload ()
   stop ();
   informationMonitorStop();
   disconnectGstBusCallback();
-
+  releaseSeekResource();
+  
   if ((m_pipeHandle != NULL) && (GST_IS_ELEMENT(m_pipeHandle)))
   {
     g_print("gst_element_set_state :  GST_STATE_NULL \n");
@@ -168,17 +161,11 @@ gboolean Pipeline::unload ()
   {
     g_print("%s pPipeContainerHandle->player already uninitialized!!!! \n", __FUNCTION__);
   }
-  //TODO if(!pPipeContainerHandle->bUsePlaybin)
-  {
-    //STATIC_COMM_CheckRefCount(pPipeContainerHandle->ch); // TODO: changbok.
-  }
+  unloadSpi();
   m_bPlaybackStopped = TRUE;
-  //BASIC_PLYR_CTRL_SetPlayerHandle(pPipeContainerHandle, NULL); //modified.
   m_pipeHandle = NULL;
-
-  //BASIC_PLYR_CTRL_ResetPlaybackInfoPost(pPipeContainerHandle); // TODO: for pending set..
-
   /* clear stream type informations */
+  
   g_print("[L]%s\r\n", __FUNCTION__);
 
   return true;
@@ -187,17 +174,31 @@ gboolean Pipeline::unload ()
 gboolean Pipeline::pause ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+	GstStateChangeReturn retVal = GST_STATE_CHANGE_SUCCESS;
+
   if (m_pipeHandle) {
     m_pendingState = PausedState;       //pending state.
     if (m_blockByVideoSink != 0)        //blocked by videosink.
       return true;
-    if (gst_element_set_state (m_pipeHandle,
-                               GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE) {
+   retVal = gst_element_set_state (m_pipeHandle, GST_STATE_PAUSED);
+   if(retVal == GST_STATE_CHANGE_FAILURE) 
+   {
       std::cout << "genericpipeline] Unable to pause : " << m_uri << endl;
       m_pendingState = m_gstPipelineState = StoppedState;
-
       stateChanged (m_gstPipelineState);        // notify state change.
-    } else {
+    }
+		else if (retVal == GST_STATE_CHANGE_NO_PREROLL)
+		{
+			// RTSP 의 경우 NO_PREROLL 리턴함.
+			// Live/VOD 가 있으므로 seek 은 가능하며
+			// 프로토콜 특성상 버퍼링 걸지 말아야 함. (from 박준수Y)
+			// Live/VOD 구분: duration 이 올라오는지 여부로 판단 가능함.
+			g_print("[%s:%d] NO_PREROLL - Live Streaming!\n", __FUNCTION__, __LINE__);
+			m_bLiveStreaming = TRUE;
+			m_source_bIsValidDuration = FALSE;
+			return TRUE;
+		}
+    else {
       return true;
     }
   }
@@ -258,31 +259,116 @@ gboolean Pipeline::stop ()
   }
   return true;
 }
+gboolean Pipeline::createSeekResource()
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
 
+  /* create mutex and clock for seek */
+  g_print("[%s] create mutex for seek\n",__FUNCTION__);
+  m_seek_mutex = g_mutex_new ();
+
+  g_print("[%s] create clock for seek\n",__FUNCTION__);
+  m_clock = gst_system_clock_obtain ();
+  m_seek_req_time = GST_CLOCK_TIME_NONE;
+  m_seek_time = -1;
+
+  return TRUE;
+}
+gboolean Pipeline::releaseSeekResource()
+{
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  g_print("[%s] clear clock for seek\n", __FUNCTION__);
+  if (m_clock)
+  {
+    gst_object_unref(m_clock);
+    m_clock = NULL;
+  }
+  m_seek_req_time = GST_CLOCK_TIME_NONE;
+  m_seek_time = -1;
+  g_print("[%s] free mutex for seek\n", __FUNCTION__);
+  if (m_seek_mutex)
+  {
+    g_mutex_free(m_seek_mutex);
+    m_seek_mutex = NULL;
+  }
+}
 gboolean Pipeline::seek (gint64 ms)
 {
   //seek locks when the video output sink is changing and pad is blocked
   if (m_pipeHandle && !m_blockByVideoSink && m_gstPipelineState != StoppedState) {
-    ms = MAX (ms, gint64 (0));
-    gint64
-    position = ms * 1000000;
+    return this->seekSpi(ms);
+  }
+  return false;
+}
+
+gboolean Pipeline::seekCommon (gint64 posMs) // common seek method.
+{
+  #define NANOSECS_IN_SEC 1000000000
+  #define SEEK_TIMEOUT (NANOSECS_IN_SEC / 10)
+  GstClockTime cur_time;
+  gboolean bAccurate = FALSE;
+  gboolean bSeeking = FALSE;
+  gboolean retCode = false;
+  /* Is there a pending seek? */
+  m_currentPosition = posMs * GST_MSECOND;// update current time.
+  g_mutex_lock(m_seek_mutex);
+  /* If there's no pending seek, or
+  * it's been too long since the seek,
+  * or we don't have an accurate seek requested */
+  cur_time = gst_clock_get_internal_time(m_clock);
+  if ((m_seek_req_time == GST_CLOCK_TIME_NONE) ||
+  (cur_time > m_seek_req_time + SEEK_TIMEOUT) ||
+  (bAccurate != FALSE)){
+    m_seek_time = -1;
+    m_seek_req_time = cur_time;
+    g_mutex_unlock(m_seek_mutex);
+  }
+  else{
+    g_print ("Not long enough since last seek, queuing it \r\n");
+    m_seek_time = (gint64)posMs;
+    g_mutex_unlock(m_seek_mutex);
+    return true;
+  }
+  m_bIsSeeking = TRUE;
+  bSeeking = seekCommon_core(posMs, GstSeekFlags(0), NULL);
+  if (bSeeking){
+    m_currentPosition = posMs * GST_MSECOND;// update current time.
+    retCode = true;
+  }
+  else{
+    g_print("Seek failed in GStreamer!\n");
+    m_bIsSeeking = FALSE; // seek fail시 바로 해제해줘야 update position 풀림.
+  }
+  // seek 요청시 GST_SEEK_FLAG_FLUSH 사용하면
+  // seek 성공/실패 여부와 상관없이 버퍼 데이터 flush 됨 (from 정병혁J)
+  m_LastSeekPTS = -1;
+  //return bSeeking;
+  return retCode;
+}
+
+gboolean Pipeline::seekCommon_core (guint64 posMs, GstSeekFlags flag, GError **ppError) // common seek method. sub
+{
+  //seek locks when the video output sink is changing and pad is blocked
+  if (m_pipeHandle && !m_blockByVideoSink && m_gstPipelineState != StoppedState) {
+    g_print ("[%s] %"G_GINT64_FORMAT"\r\n", __FUNCTION__, posMs * GST_MSECOND);
     bool
     isSeeking = gst_element_seek (m_pipeHandle,
                                   m_playbackRate,
                                   GST_FORMAT_TIME,
-                                  GstSeekFlags (GST_SEEK_FLAG_ACCURATE | GST_SEEK_FLAG_FLUSH),
+                                  //GstSeekFlags (GST_SEEK_FLAG_ACCURATE | GST_SEEK_FLAG_FLUSH),
+                                  GstSeekFlags(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT | flag),
                                   GST_SEEK_TYPE_SET,
-                                  position,
+                                  posMs * GST_MSECOND,
                                   GST_SEEK_TYPE_NONE,
                                   0);
-    if (isSeeking)
-      m_currentPosition = ms;
-
+    //if (isSeeking)
+      //m_currentPosition = position; //ms; // in nano sec.
     return isSeeking;
   }
-
   return false;
 }
+
+
 
 Pipeline::State Pipeline::getPlayerState(){
   return m_playertState;
@@ -1773,7 +1859,7 @@ Pipeline::setPlaybackRate (gfloat rate)
 {
   return setPlaybackRate (this, rate);
 }
-
+#if 0
 gboolean Pipeline::setPlaybackRate (gpointer data, gfloat rate)
 {
   Pipeline *
@@ -1791,6 +1877,145 @@ gboolean Pipeline::setPlaybackRate (gpointer data, gfloat rate)
   }
   return true;
 }
+#else
+gboolean Pipeline::setPlaybackRate (gpointer data, gfloat rate)
+{
+  gboolean	retVal = true;
+  gint64 			curPosition	= 0;
+  gfloat 			prevTrickRate = 0.0;
+  Pipeline *
+  self = reinterpret_cast < Pipeline * >(data);
+
+  if ((self == NULL) ||
+  (self->m_pipeHandle == NULL) ||
+  (GST_IS_ELEMENT(self->m_pipeHandle) == FALSE))
+  {
+    g_print("%s:%d] Error. Player Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  if (self->compareDouble(rate, 0.0))
+  {
+    g_print("[setPlaybackRate] rate 0.0 -> 1.0 resetting!!!!! \r\n");
+    rate = 1.0;
+  }
+  prevTrickRate = self->m_playbackRate;
+  if (!self->compareDouble(self->m_playbackRate, rate))
+  {
+    /* preprocessing set rate. by each pipeline types. */
+    self->setPlaybackRateSpi_pre(self, rate); 
+    self->m_playbackRate = rate;
+    if (self->m_pipeHandle)
+    {
+      g_print("[setPlaybackRate] set playbackRate = %f \n ", rate);
+      curPosition = self->m_currentPosition;
+      if (curPosition < 1000000000) // 1s 보다 작으면
+      curPosition = 0;
+      if (rate < (double)(0.0)) /* FastRewind */
+      {
+        //if (self->m_bServerSideTrick) // support for server side trick playback.
+        //  self->setServerSideTrickSpi(self, TRUE); //moved.
+        /* FastRewind */
+        if (gst_element_seek(self->m_pipeHandle,
+          (gdouble)rate,
+          GST_FORMAT_TIME,
+          GstSeekFlags (GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_SKIP),
+          GST_SEEK_TYPE_SET,	0,	//jump at current postion
+          GST_SEEK_TYPE_SET,	(gint64)curPosition) != TRUE)
+        {
+          g_print("Seek failed!!!\n");
+          self->m_playbackRate = prevTrickRate; // restore original value.
+          retVal = false;
+        }
+        self->m_LastSeekPTS = -1;
+      } /* FastRewind */
+      else if (self->compareDouble(rate, 1.0)) /* x1.0 */
+      {
+        g_print("------------------------->>>>>>>>>> Seek finish x1.0 now !!!\n");
+        //if(self->m_bServerSideTrick) // fix for maxdome FF20120112
+        //  self->setServerSideTrickSpi(self, FALSE); // moved..
+        if (self->m_duration > 0)
+        {
+          /* FastForward */
+          if (gst_element_seek(self->m_pipeHandle,
+            (gdouble)rate,
+            GST_FORMAT_TIME,
+            GstSeekFlags (GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+            GST_SEEK_TYPE_SET, (gint64)curPosition,	//jump at current postion
+            GST_SEEK_TYPE_SET, self->m_duration) != TRUE)
+          {
+            g_print("Seek failed!!!\n");
+            retVal = false;
+            self->m_playbackRate = prevTrickRate; // restore original value.
+          }
+          self->m_LastSeekPTS = -1;
+        }
+        else  // 이런 케이스가 있는지?
+        {
+          g_print("%s:%d] duration is 0 --> stop position is not set! \n", __FUNCTION__, __LINE__);
+
+          /* FastForward */
+          if (gst_element_seek(self->m_pipeHandle,
+            (gdouble)rate,
+            GST_FORMAT_TIME,
+            GstSeekFlags (GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_SKIP),
+            GST_SEEK_TYPE_SET, (gint64)curPosition,	//jump at current postion
+            GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE) != TRUE)
+          {
+            g_print("Seek failed!!!\n");
+            retVal = false;
+            self->m_playbackRate = prevTrickRate; // restore original value.
+          }
+
+          self->m_LastSeekPTS = -1;
+        }
+      } /* x1.0 */
+      else /* FastForward */
+      {
+        //if (self->m_bServerSideTrick) // fix for maxdome FF20120112
+        //self->setServerSideTrick(self, TRUE); //moved
+
+        if (self->m_duration > 0)
+        {
+        /* FastForward */
+        if (gst_element_seek(self->m_pipeHandle,
+          (gdouble)rate,
+          GST_FORMAT_TIME,
+          GstSeekFlags (GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_SKIP),
+          GST_SEEK_TYPE_SET, (gint64)curPosition,	//jump at current postion
+          GST_SEEK_TYPE_SET, self->m_duration) != TRUE)
+        {
+          g_print("Seek failed!!!\n");
+          retVal = false;
+          self->m_playbackRate = prevTrickRate; // restore original value.
+        }
+
+        self->m_LastSeekPTS = -1;
+        }
+        else  // 이런 케이스가 있는지?
+        {
+          g_print("%s:%d] duration is 0 --> stop position is not set! \n", __FUNCTION__, __LINE__);
+
+          /* FastForward */
+          if (gst_element_seek(self->m_pipeHandle,
+          (gdouble)rate,
+            GST_FORMAT_TIME,
+            GstSeekFlags (GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_SKIP),
+            GST_SEEK_TYPE_SET, (gint64)curPosition,	//jump at current postion
+            GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE) != TRUE)
+          {
+            g_print("Seek failed!!!\n");
+            retVal = false;
+            self->m_playbackRate = prevTrickRate; // restore original value.
+          }
+
+          self->m_LastSeekPTS = -1;
+        }
+      } /* FastForward */
+    }
+  }
+  return retVal;
+}
+#endif
 
 bool Pipeline::compareDouble (const double num1, const double num2)
 {
@@ -1826,8 +2051,8 @@ gboolean Pipeline::updatePlayPosition(gpointer data){
 #if 0 //TODO..
   if (self->m_bEndOfFile && PLAYBIN2_IsUsing())
   {
-    LMF_PERI_PRINT("[TIMER][%s] bEndOfFile!\n", __FUNCTION__);
-    //TODO API_LMF_EVENT_Notify(self, MEDIA_CB_MSG_PLAYEND);
+    g_print("[TIMER][%s] bEndOfFile!\n", __FUNCTION__);
+    pipelineEventNotify(self, MEDIA_CB_MSG_PLAYEND);
     return TRUE;
   }
 #endif
@@ -2026,7 +2251,7 @@ gboolean Pipeline::setBufferProgress(gpointer data, int progress, int bufferedSe
       }
       else
         self->setInterleavingTypeSpi(self,NULL, 0, NULL);
-      //TODO LMF_PLYR_CTRL_Play(pPlayerHandle);
+      //TODO :: LMF_PLYR_CTRL_Play(pPlayerHandle);
     }
   }
 }

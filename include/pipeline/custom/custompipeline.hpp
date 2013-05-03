@@ -145,23 +145,21 @@ private:
   MEDIA_STATUS_T _setCapsOnAudioSink(const char *mime_type, GstPad *sinkpad);
   void _addTextPad (GstPad * pad);
 
-  static void playbinNotifySource (GObject * o, GParamSpec * p, gpointer d);
-  static void handleVolumeChange (GObject * o, GParamSpec * p, gpointer d);
-  static void handleMutedChange (GObject * o, GParamSpec * p, gpointer d);
+  static void notifySourceCallbackFunc (GObject * o, GParamSpec * p, gpointer d);
 
 public:
   ~CustomPipeline ();
 
   gboolean loadSpi_pre();
   gboolean loadSpi_post();
-
-
+  gboolean unloadSpi ();
+  //gboolean seekSpi (gint64 ms); // TODO..
+ 
   MEDIA_STATUS_T load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
                        const gchar * pSrcPath,
                        const gchar * pWritePath,
                        guint64 startOffset, MEDIA_CUSTOM_CONTENT_INFO_T * pstContentInfo);
-  void unload ();
-  bool play (int rate);
+
   gboolean informationMonitorStartSpi(guint32 timeInterval);
   gboolean positionSpi(gpointer data, gint64 *pos);
   void setInterleavingTypeSpi(gpointer data, GstObject *pObj, gint stream, gpointer user_data);
@@ -181,16 +179,6 @@ public:
                              guint64 pts, MEDIA_DATA_CHANNEL_T esData);
 
   GstElement getInstance () const;
-  gint64 duration () const;
-  gint64 position () const;
-  gint volume () const;
-  gboolean isMuted () const;
-  gboolean isAudioAvailable () const;
-  gboolean isVideoAvailable () const;
-  gboolean isSeekable () const;
-  gfloat playbackRate () const;
-
-  //Error error() const;
   GString errorString () const;
 
     bool setGstreamerDebugLevel (guint select, gchar * category,  GstDebugLevel level);

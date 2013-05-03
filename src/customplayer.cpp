@@ -72,6 +72,30 @@ CustomPlayer::loadSpi (const std::string optionString)
 	return result;
 }
 
+gboolean CustomPlayer::seekSpi (guint64 posMsec){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+  LOG_D ("seekSpi", "CustomPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+
+  if (pipeline->m_pendingState == Pipeline::PausedState)
+  {
+    #if 0 // TODO... static seek   
+    m_bFeedPossible = FALSE;
+    _PrintBufferLevel();
+
+    if((retVal = _STATIC_COMM_Seek(newPosition)) == true)
+    LMF_STATIC_COMM_InitPreRoll(TRUE);
+
+    _PrintBufferLevel();
+    #endif     
+  }
+  else
+  {
+    g_print("[%s][ERROR]state: %d\n", __FUNCTION__, pipeline->m_pendingState);
+    return false;
+  }
+  return true;
+}
 
 gboolean CustomPlayer::isReadyToPlay ()
 {

@@ -27,8 +27,15 @@ private:
 public:
   ~GenericPipeline ();
 
+  /* basic playback control */
   gboolean loadSpi_pre ();
   gboolean loadSpi_post ();
+  gboolean unloadSpi ();
+  /* for trick, seek */
+  gboolean setPlaybackRateSpi_pre (gpointer data, gfloat rate);
+  gboolean setServerSideTrick(gpointer data, gboolean serverSideTrick);
+  gboolean seekSpi (gint64 ms);
+
 
   bool loadFromURI ();
   bool handleURI ();
