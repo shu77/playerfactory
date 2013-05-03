@@ -1,4 +1,3 @@
-
 /*
  *  customplayer.cpp
  *
@@ -15,7 +14,7 @@
 #endif
 
 #include <pipeline/custom/customplayer.hpp>
-#include <pipeline/generic/genericpipeline.hpp>
+#include <pipeline/custom/custompipeline.hpp>
 
 using namespace mediapipeline;
 /**
@@ -26,6 +25,10 @@ using namespace mediapipeline;
 CustomPlayer::CustomPlayer ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
+
+	Pipeline::bsp_t pipeline = getPipeline ();
+	pipeline.reset (new CustomPipeline ());
+	setPipeline (pipeline);       // save to abstractplayer.
 }
 
 CustomPlayer::~CustomPlayer ()
@@ -38,8 +41,10 @@ CustomPlayer::playSpi (int rate)
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
   LOG_D ("playing", "CustomPlayer");
-//      Pipeline::bsp_t pipeline = getPipeline();
-//      pipeline->play(rate);
+      Pipeline::bsp_t pipeline = getPipeline();
+      pipeline->play(rate);
+	   
+ 	return true;
 }
 
 gboolean CustomPlayer::pauseSpi ()
@@ -53,12 +58,18 @@ gboolean CustomPlayer::pauseSpi ()
 gboolean
 CustomPlayer::loadSpi (const std::string optionString)
 {
+  gboolean result = false;
+  
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPlayer");
 
 //      Pipeline::bsp_t pipeline = getPipeline();
 //      pipeline.reset(new GenericPipeline());
 //      setPipeline(pipeline);
-//      pipeline->load();
+
+	Pipeline::bsp_t pipeline = getPipeline();
+	result = pipeline->load(optionString);
+
+	return result;
 }
 
 

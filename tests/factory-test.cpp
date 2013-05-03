@@ -189,6 +189,37 @@ main (int argc, char **argv)
       //MEDIA_STREAMOPT_T streamOpt;
       std::string optionstr;
 
+#if 1 /* option string test */
+
+	     std::string mystr;
+
+      mystr.clear ();
+      optionstr.clear ();
+      std::cout << "Input play URI:";
+      getline (std::cin, mystr);
+      std::cout << endl;
+      optionstr+= " { \"clipOpt\": { ";
+      optionstr+= "\"mediafile\":"; // clipoption -> mediafile
+      optionstr+= "\"";
+      optionstr+= mystr; // value
+      optionstr+= "\"";
+      optionstr+= ", ";
+      optionstr+= "\"level\":";
+      optionstr+= "\"4207846\"";
+      //optionstr+= " } } ";
+      optionstr+= " }  ";
+
+      optionstr+= " , \"wmainfo\": { ";
+      optionstr+= " \"wmaVer\": "; // clipoption -> mediafile
+      optionstr+= "\"";
+      optionstr+= "123456789";
+      optionstr+= "\"";
+      optionstr+= " } } ";
+
+      std::cout << " -- boost json string : " << optionstr << endl;
+
+#endif 
+
       player->load (optionstr);      // pipeline created.
     }
     break;

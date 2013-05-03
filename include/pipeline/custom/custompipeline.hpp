@@ -1,4 +1,3 @@
-
 /*
  * custompipeline.hpp
  *
@@ -156,9 +155,7 @@ public:
   gboolean loadSpi_pre();
   gboolean loadSpi_post();
 
-  //void load();
-  gboolean load (MEDIA_STREAMOPT_T * streamOpt, MEDIA_FORMAT_T mediaFormatType);
-  gboolean load (MEDIA_CLIPOPT_T * clipOpt);
+
   MEDIA_STATUS_T load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
                        const gchar * pSrcPath,
                        const gchar * pWritePath,
@@ -176,7 +173,8 @@ public:
   void correctBufferedBytesSpi(gpointer data);
   static void videoDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
   static void audioDecodeUnderrunCbSpi(GstElement *pObj, gpointer data);
-  gboolean checkTimeToDecodeSpi(gpointer data);
+  gboolean #if 0
+
 
   gboolean SetLanguage(gint32 audioNum);
   MEDIA_STATUS_T FeedStream (guint8 * pBuffer, guint32 bufferSize,

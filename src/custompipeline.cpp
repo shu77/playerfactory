@@ -1,4 +1,3 @@
-
 /*
  * custompipeline.cpp
  *
@@ -24,9 +23,9 @@
 /******************************************************************************
    Macro Definitions
 ******************************************************************************/
-#define LMF_DBG_PRINT
-#define LMF_ERR_PRINT
-#define LMF_BUFFER_PERI_PRINT
+#define LMF_DBG_PRINT	g_print
+#define LMF_ERR_PRINT	g_print
+#define LMF_BUFFER_PERI_PRINT	g_print
 
 /*******************************************************************************
   Local Constant Definitions
@@ -50,8 +49,13 @@ CustomPipeline::CustomPipeline ()
   strcpy (m_stDmxList[1].pElementName, "mcastdemux");
   m_stDmxList[2].contentType = MEDIA_CUSTOM_CONTAINER_MPEG2PES;
   strcpy (m_stDmxList[2].pElementName, "mpegpsdemux");
-  m_stDmxList[3].contentType = 0xFF;
-  strcpy (m_stDmxList[3].pElementName, NULL);
+
+	/* last */
+   m_stDmxList[3].contentType = 0xFF;
+   m_stDmxList[3].pElementName[0] = '\0';
+ 
+ 
+  
   /* multi audio track info initialize */
   m_audCount = 0;
   m_audCurrent = 0;
@@ -91,26 +95,6 @@ CustomPipeline::CustomPipeline ()
 CustomPipeline::~CustomPipeline ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-}
-
-gboolean
-CustomPipeline::load (MEDIA_CLIPOPT_T * clipOpt)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-
-  return true;
-}
-
-
-gboolean
-CustomPipeline::load (MEDIA_STREAMOPT_T * streamOpt,
-                      MEDIA_FORMAT_T mediaFormatType)
-{
-  LOG_FUNCTION_SCOPE_NORMAL_D ("CustomPipeline");
-  //this->loadSpi(clipOpt);
-  // not supported API.
-
-  return true;
 }
 
 
@@ -347,9 +331,19 @@ gboolean CustomPipeline::loadSpi_pre()
 }
 gboolean CustomPipeline::loadSpi_post()
 {
-  //
+	MEDIA_CUSTOM_CONTENT_INFO_T contentInfo;
+  
+  //TODO 1. parse Json
 
+  //TODO 2. make content info 
 
+  //TODO 3. call load ()
+  memset(&contentInfo,0x00,sizeof(MEDIA_CUSTOM_CONTENT_INFO_T));
+
+  contentInfo.container = MEDIA_CUSTOM_CONTAINER_TS;
+  
+  load(MEDIA_CUSTOM_SRC_TYPE_PUSH, NULL,NULL, 0, &contentInfo);
+  
   return true;
 }
 
