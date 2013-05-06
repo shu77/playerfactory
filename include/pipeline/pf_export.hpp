@@ -1,16 +1,9 @@
-/********************************************************************************
-*   LCD S/W PLATFORM LABORATORY, LG ELECTRONICS INC., SEOUL, KOREA
-*   Copyright(c) 2013 by LG Electronics Inc.
-*
-*   All rights reserved. No part of this work may be reproduced, stored in a
-*   retrieval system, or transmitted by any means without prior written
-*   permission of LG Electronics Inc.
-********************************************************************************/
+
 /** @file pf_export.h
  *
  *  export types for pipeline factory.
  *
- *  @author MS part (mfdev@lge.com)
+ *  @author MS part (mf-dev@lge.com)
 */
 #ifndef _PF_EXPORT_C_H_
 #define _PF_EXPORT_C_H_

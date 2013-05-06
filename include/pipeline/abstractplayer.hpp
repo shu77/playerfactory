@@ -74,7 +74,15 @@ public:                      // for derived players
   virtual gboolean isReadyToPlay () = 0;
   virtual Pipeline::State getPendingPipelineState () = 0;
 
-
+// multi
+  gboolean getAudioLanguagesList(gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum);
+  gboolean setAudioLanguage(char *pAudioLang);
+  gboolean setAudioTrack(gint AudioTrackNum);
+  gboolean getCurAudioLanguage(char **ppAudioLang);
+  gboolean getCurAudioTrack(gint *pCurAudioTrackNum);
+  gboolean getTotalVideoAngle(gint *pTotalVideoAngleNum);
+  gboolean setVideoAngle(gint VideoAngleNum);
+  gboolean getCurrentVideoAngle(gint *pCurrentVideoAngleNum);
 
   virtual gint64 durationSpi () const = 0;
   virtual gint64 positionSpi () const = 0;

@@ -175,8 +175,18 @@ public:
   GstElement getInstance () const;
   GString errorString () const;
 
-    bool setGstreamerDebugLevel (guint select, gchar * category,  GstDebugLevel level);
-
+#if 0 // TODO:
+  //multi track audio, multi angle video APIs
+  gboolean getAudioLanguagesListSpi(gpointer data, gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum);
+  gboolean setAudioLanguageSpi(gpointer data, char *pAudioLang);
+  gboolean setAudioTrackSpi(gpointer data, gint AudioTrackNum);
+  gboolean getCurAudioLanguageSpi(gpointer data, char **ppAudioLang);
+  gboolean getCurAudioTrackSpi(gpointer data, gint *pCurAudioTrackNum);
+  gboolean getTotalVideoAngleSpi(gpointer data,  gint *pTotalVideoAngleNum);
+  gboolean setVideoAngleSpi(gpointer data, gint VideoAngleNum);
+  gboolean getCurrentVideoAngleSpi(gpointer data, gint *pCurrentVideoAngleNum);
+  // end 
+#endif
 
 };
 }

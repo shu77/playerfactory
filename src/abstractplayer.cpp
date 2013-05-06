@@ -302,3 +302,61 @@ void AbstractPlayer::setPlayerState(Pipeline::State state){
   }
 }
 
+/* multi audio track, multi video angle */
+gboolean AbstractPlayer::getAudioLanguagesList(gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    return pipeline->getAudioLanguagesList(ppLangList, pLangListSize, pTotalLangNum);
+  }
+}
+gboolean AbstractPlayer::setAudioLanguage(char *pAudioLang){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    return pipeline->setAudioLanguage(pAudioLang);
+  }
+}
+gboolean AbstractPlayer::setAudioTrack(gint AudioTrackNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    return pipeline->setAudioTrack(AudioTrackNum);
+  }
+}
+gboolean AbstractPlayer::getCurAudioLanguage(char **ppAudioLang){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    return pipeline->getCurAudioLanguage(ppAudioLang);
+  }
+}
+gboolean AbstractPlayer::getCurAudioTrack(gint *pCurAudioTrackNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    return pipeline->getCurAudioTrack(pCurAudioTrackNum);
+  }
+}
+gboolean AbstractPlayer::getTotalVideoAngle(gint *pTotalVideoAngleNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    return pipeline->getTotalVideoAngle(pTotalVideoAngleNum);
+  }
+}
+gboolean AbstractPlayer::setVideoAngle(gint VideoAngleNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    return pipeline->setVideoAngle(VideoAngleNum);
+  }
+}
+gboolean AbstractPlayer::getCurrentVideoAngle(gint *pCurrentVideoAngleNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("AbstractPlayer");
+  Pipeline::bsp_t pipeline = getPipeline ();
+  if (pipeline) {
+    return pipeline->getCurrentVideoAngle(pCurrentVideoAngleNum);
+  }
+}
+

@@ -561,7 +561,7 @@ Pipeline::isVideoAvailable () const
 
 
 
-
+/*----------------------- START internal state processing -----------------------------*/
 void Pipeline::stateChanged (Pipeline::State newState)
 {
 
@@ -600,6 +600,128 @@ Pipeline::handleMutedChange (GObject * pObject, GParamSpec * pParam,
 
 
 }
+/*-------------------- END internal state processing --------------------------------------------*/
+
+/*-------------------- STRAT multi track audio, multi angle video APIs --------------------------*/
+/**
+ * @f getAudioLanguagesList
+ * get media's multi audio track informations.
+ * ppLangList : ISO-639-2 or ISO-639-1 code for the language the content is in (string) array. (each str block size is MAX_LANGUAGE_STR_LENGTH)
+ * pLangListSize : total string arrary size
+ * pTotalLangNum : total language number
+ */
+gboolean Pipeline::getAudioLanguagesList(gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return getAudioLanguagesListCmn(this, ppLangList, pLangListSize, pTotalLangNum);
+}
+gboolean Pipeline::getAudioLanguagesListCmn(gpointer data, gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return self->getAudioLanguagesListSpi(self, ppLangList, pLangListSize, pTotalLangNum);
+}
+/**
+ * @f setAudioLanguage
+ * Set media's current active audio track with user setting language.
+ * pAudioLang : ISO-639-2 or ISO-639-1 type string for set active language.
+ */
+gboolean Pipeline::setAudioLanguage(char *pAudioLang){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return setAudioLanguageCmn(this, pAudioLang);
+}
+gboolean Pipeline::setAudioLanguageCmn(gpointer data, char *pAudioLang){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return self->setAudioLanguageSpi(self, pAudioLang);
+}
+/**
+ * @f setAudioTrack
+ * Set media's current active audio track with user setting track number.
+ * AudioTrackNum : audio track number for set active audio track.
+ */
+gboolean Pipeline::setAudioTrack(gint AudioTrackNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return setAudioTrackCmn(this, AudioTrackNum);
+}
+gboolean Pipeline::setAudioTrackCmn(gpointer data, gint AudioTrackNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return self->setAudioTrackSpi(self, AudioTrackNum);
+}
+/**
+ * @f getCurAudioLanguage
+ * Get media's current active audio language.
+ * ppAudioLang : current audio language string.(out)
+ */
+gboolean Pipeline::getCurAudioLanguage(char **ppAudioLang){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return getCurAudioLanguageCmn(this, ppAudioLang);
+}
+gboolean Pipeline::getCurAudioLanguageCmn(gpointer data, char **ppAudioLang){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return self->getCurAudioLanguageSpi(self, ppAudioLang);
+}
+/**
+ * @f getCurAudioTrack
+ * Get media's current active audio track number.
+ * pCurAudioTrackNum : current audio track number.(out)
+ */
+gboolean Pipeline::getCurAudioTrack(gint *pCurAudioTrackNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return getCurAudioTrackCmn(this, pCurAudioTrackNum);
+}
+gboolean Pipeline::getCurAudioTrackCmn(gpointer data, gint *pCurAudioTrackNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return self->getCurAudioTrackSpi(self, pCurAudioTrackNum);
+}
+/* multi VIDEO angle */
+/**
+ * @f getTotalVideoAngle
+ * Get media's total video angle number.
+ * pTotalVideoAngleNum : total video angle number.(out)
+ */
+gboolean Pipeline::getTotalVideoAngle(gint *pTotalVideoAngleNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return getTotalVideoAngleCmn(this, pTotalVideoAngleNum);
+}
+gboolean Pipeline::getTotalVideoAngleCmn(gpointer data, gint *pTotalVideoAngleNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return self->getTotalVideoAngleSpi(self, pTotalVideoAngleNum);
+}
+/**
+ * @f setVideoAngle
+ * Set media's current active video angle number.
+ * VideoAngleNum : current active video angle number.(in)
+ */
+gboolean Pipeline::setVideoAngle(gint VideoAngleNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return setVideoAngleCmn(this, VideoAngleNum);
+}
+gboolean Pipeline::setVideoAngleCmn(gpointer data, gint VideoAngleNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return self->setVideoAngleSpi(self, VideoAngleNum);
+}
+/**
+ * @f media_API_GetCurrentVideoAngle
+ * Get media's current active video angle number.
+ * pCurrentVideoAngleNum : current active video angle number.(out)
+ */
+gboolean Pipeline::getCurrentVideoAngle(gint *pCurrentVideoAngleNum){
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return getCurrentVideoAngleCmn(this, pCurrentVideoAngleNum);
+}
+gboolean Pipeline::getCurrentVideoAngleCmn(gpointer data, gint *pCurrentVideoAngleNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  return self->getCurrentVideoAngleSpi(self, pCurrentVideoAngleNum);
+}
+
+
+/*-------------------- END multi track audio, multi angle video APIs ----------------------------*/
+
 InformationHandler::bsp_t Pipeline::getInformationHandler ()
 {
   return this->_infomationHndl;
@@ -630,33 +752,129 @@ Options::bsp_t Pipeline::getOptionsHandler ()
   return this->_options;
 }
 
-void
-Pipeline::pipelineEventNotify (gpointer data, MEDIA_CB_MSG_T msg)
+/*------------------ start event functions -----------------------------------------------------*/
+gboolean Pipeline::notifyPipelineEvent (gpointer data, MEDIA_CB_MSG_T msg)
 {
-  g_print("event notify !!! %d \r\n", msg);
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
 
-  //TODO connect.. playeventlistener
+  g_print("[E]>>>>>>>>%s ctx handle[%p] pMsg[%d]    \r\n", __FUNCTION__, self->m_pipeHandle, msg);
+
+  switch(msg)
+  {
+    case MEDIA_CB_MSG_PLAYSTART : //continue
+    case MEDIA_CB_MSG_RESUME_DONE :
+      self->notifyStateUpdate(self, (const char *)"play", true);
+      break;
+    case MEDIA_CB_MSG_PAUSE_DONE :
+      self->notifyStateUpdate(self, (const char *)"pause", true);
+      break;
+    case MEDIA_CB_MSG_PLAYEND :
+      self->notifyStateUpdate(self, (const char *)"eos",true);
+      break;
+    case MEDIA_CB_MSG_SEEK_DONE :
+      self->notifyStateUpdate(self, (const char *)"seek",true);
+      break;
+    default :
+      break;
+  }
+  if ((msg == MEDIA_CB_MSG_ERR_PLAYING) ||
+  (msg>MEDIA_CB_MSG_START_GST_MSG && msg<MEDIA_CB_MSG_END_GST_MSG) || 
+  (msg>=MEDIA_CB_MSG_ERR_HLS_302 && msg<=MEDIA_CB_MSG_ERR_HLS_KEYFILE_SIZE_ZERO))
+  {
+    self->notifyErrorUpdate(self, (gint64)msg);
+  }
+  g_print("[L]<<<<<<<<<<<<%s ctx handle[%p] \r\n", __FUNCTION__, self->m_pipeHandle);
+
+return true;
 }
-/**
- * @f sendDuration
- * update uMediaServer with pipeline duration
- */
-bool Pipeline::sendDuration(gint64 duration)
+
+gboolean Pipeline::notifyDuration(gpointer data, gint64 durationMS)
 {
-  g_print("Sending duration -> %lld.",(unsigned long long)duration);
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  g_print("Sending duration -> %lld.",(unsigned long long)durationMS);
   //TODO connect.. playeventlistener
   return true;
 }
-/**
- * @f sendPositionUpdate
- * update uMediaServer with pipeline position state
- */
-bool Pipeline::sendPositionUpdate(gint64 currPosition)
+gboolean Pipeline::notifyPositionUpdate(gpointer data, gint64 positionInMs)
 {
-  g_print("Sending position update -> currPosition: %lld.",(unsigned long long)currPosition);
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  g_print("Sending position update -> currPosition: %lld.",(unsigned long long)positionInMs);
   //TODO connect.. playeventlistener 
   return true;
 }
+/*
+gboolean Pipeline::sendAudioTrackInfo(gpointer data, gchar *payload)
+{
+  if(payload)
+  {
+    g_print("Sending multi audio track info: %s.", payload);
+    g_free(payload);
+  }
+  return true;
+}
+*/
+gboolean Pipeline::notifyAudioTrackInfo (gpointer data, int trackNum, char *languageList){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  if(languageList == NULL)
+    return false;
+
+    // TODO. json string pack (upper layer)
+  int i=0;
+  for(i=0; i<trackNum; i++)
+  {
+    char tmpStr[255] = {0,};
+    sprintf(tmpStr, "Track%d",i);
+    g_print("[TEST-SEO] track(%d) %s \r\n",i,tmpStr);     
+  }
+  
+  //char *sendStr = strdup(payload_str);
+  //g_timeout_add(0, (GSourceFunc) _notifyAudioTrackInfoTimeoutCallback, sendStr);
+  free(languageList);
+  return true;
+}
+gboolean Pipeline::notifyVideoAngleInfo (gpointer data, int angleNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  g_print("Sending multi video angle info: %d.", angleNum);
+  return true;
+}
+gboolean Pipeline::notifyStateUpdate(gpointer data, const char * state, bool ready){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  g_print("Sending video start update. stat=[%s]value=[%d] \r\n", state, ready);
+
+  return true;
+}
+gboolean Pipeline::notifyErrorUpdate(gpointer data, gint64 errorEnum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
+  g_print("Sending error update. error=[%d] \r\n", (int)errorEnum);
+
+  return true;
+}
+gboolean Pipeline::notifyVideoTrackUpdate(gpointer data, bool hasVideo, guint64 width, guint64 height)
+{
+  g_print("Sending video track update -> hasVideo: %d.", hasVideo);
+  if (hasVideo) {
+    char* videoSize = g_strdup_printf("\"%" G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT "\"", width, height);
+    //UMSConnectorSendChangeNotificationString(_gpipeline_context.UMSConn_handle, "videoSize", videoSize);
+    g_free(videoSize);
+  }
+
+  return true;
+}
+gboolean Pipeline::notifyAudioTrackUpdate(gpointer data, bool hasAudio)
+{
+  g_print("Sending audio track update -> hasAudio: %d.", hasAudio);
+  //UMSConnectorSendChangeNotificationString(_gpipeline_context.UMSConn_handle,"hasAudio", hasAudio ? "true" : "false");
+  return true;
+}
+
+/*------------------ end event functions -----------------------------------------------------*/
 
 void
 Pipeline::checkSupported (gpointer data)
@@ -868,7 +1086,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
              __FUNCTION__, tag);
             m_bPendingNotSupportedAudioMessage = false;
             m_bSendNotSupportedAudioMessageAtPlayState = true;
-            self->pipelineEventNotify (self,
+            self->notifyPipelineEvent (self,
                                        MEDIA_CB_MSG_NOT_SUPPORTED_AUDIO_CODEC);
           } else {
             // play state 전이면 pending 하고 play state change 시에 보내자.
@@ -884,7 +1102,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
           if (m_gstPipelineState == PlayingState) {
             LMF_DBG_PRINT ("[BUS][%s] video TAG updated! noti to UI.\n",
                            __FUNCTION__);
-            self->pipelineEventNotify (self, MEDIA_CB_MSG_SOURCE_INFO_UPDATED);
+            self->notifyPipelineEvent (self, MEDIA_CB_MSG_SOURCE_INFO_UPDATED);
           }
         }
 #endif
@@ -979,7 +1197,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
             // play state에서 뒤늦게 video TAG가 올라오면 UI에 noti.
             if (self->m_gstPipelineState == PlayingState) {
               std::cout << "[BUS] video TAG updated! noti to UI.";
-              self->pipelineEventNotify (self, MEDIA_CB_MSG_SOURCE_INFO_UPDATED);
+              self->notifyPipelineEvent (self, MEDIA_CB_MSG_SOURCE_INFO_UPDATED);
             }
           }
 
@@ -1068,7 +1286,7 @@ gboolean Pipeline::checkPendingEOS(gpointer data)
   if(self->m_bPendingEOS == TRUE)
   {
     g_print("[BUS EOS][%s:%d] send MEDIA_CB_MSG_PLAYEND. \n", __FUNCTION__, __LINE__);
-    self->pipelineEventNotify(self, MEDIA_CB_MSG_PLAYEND);
+    self->notifyPipelineEvent(self, MEDIA_CB_MSG_PLAYEND);
     return TRUE;
   }
   return FALSE;
@@ -1098,11 +1316,11 @@ Pipeline::handleStateMsgPlay (gpointer data)
 #endif
       {
         std::cout << "[BUS][->NOTI] MEDIA_CB_MSG_PLAYSTART" << endl;
-        self->pipelineEventNotify (self, MEDIA_CB_MSG_PLAYSTART);
+        self->notifyPipelineEvent (self, MEDIA_CB_MSG_PLAYSTART);
       }
     } else {
       std::cout << "[BUS][->NOTI] MEDIA_CB_MSG_RESUME_DONE" << endl;
-      self->pipelineEventNotify (self, MEDIA_CB_MSG_RESUME_DONE);
+      self->notifyPipelineEvent (self, MEDIA_CB_MSG_RESUME_DONE);
     }
 
     if (self->m_bPlayStatePreProcessingDone == false) {
@@ -1312,7 +1530,7 @@ Pipeline::handleBusEOS (gpointer data)
     }
     if (self->m_bNeedToRestart == false) {
       std::cout << "[BUS EOS] send MEDIA_CB_MSG_PLAYEND. " << endl;
-      self->pipelineEventNotify (self, MEDIA_CB_MSG_PLAYEND);
+      self->notifyPipelineEvent (self, MEDIA_CB_MSG_PLAYEND);
     } else                      // ASF live case.
     {
       if (self->m_bAsfLive == true && self->m_duration > 0)     // local file ASF live play case.
@@ -1320,18 +1538,18 @@ Pipeline::handleBusEOS (gpointer data)
         std::cout <<
                   "[BUS EOS] send MEDIA_CB_MSG_PLAYEND at (ASF live + local file play case)."
                   << endl;
-        self->pipelineEventNotify (self, MEDIA_CB_MSG_PLAYEND);
+        self->notifyPipelineEvent (self, MEDIA_CB_MSG_PLAYEND);
         // asf demuxer 에서 file play 인 경우만 duration 제공. 이외는 0.
       } else if (self->m_isDLNA == true) {      // WMP(win8) DLNA DMC 재생 시, ASF live stream 으로 재생.
         std::cout <<
                   "[BUS EOS] send MEDIA_CB_MSG_PLAYEND at (ASF live + DLNA play case). "
                   << endl;
-        self->pipelineEventNotify (self, MEDIA_CB_MSG_PLAYEND);
+        self->notifyPipelineEvent (self, MEDIA_CB_MSG_PLAYEND);
       } else {                  /* live asf - protocol module에서 eos detect 시 재생 retry (requirement of ORANGE pl sport) */
         std::cout <<
                   "[BUS EOS] send MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN at (ASF live stream)."
                   << endl;
-        self->pipelineEventNotify (self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
+        self->notifyPipelineEvent (self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
       }
     }
   } else {
@@ -1370,7 +1588,7 @@ void Pipeline::handlePlayerMsg_AsyncDone(gpointer data)
     /* raise cb msg here */
     self->m_bIsSeeking = FALSE;
     g_print("[BUS ASYNCDONE] cur state=%d\n", self->m_gstPipelineState);
-    self->pipelineEventNotify(self, MEDIA_CB_MSG_SEEK_DONE);
+    self->notifyPipelineEvent(self, MEDIA_CB_MSG_SEEK_DONE);
 #if 0 // TODO.. seek mutex handling.
     /* When a seek has finished, set the playing state again */
     g_mutex_lock (self->m_seek_mutex);
@@ -1423,11 +1641,11 @@ gboolean Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
     gst_message_parse_error (pMessage, &pErr, &pDebug);
     if ((pErr->domain == GST_STREAM_ERROR)
         && (pErr->code == GST_STREAM_ERROR_CODEC_NOT_FOUND)) {
-      self->pipelineEventNotify (self, MEDIA_CB_MSG_ERR_CODEC_NOT_SUPPORTED);
+      self->notifyPipelineEvent (self, MEDIA_CB_MSG_ERR_CODEC_NOT_SUPPORTED);
       std::cout <<
                 "[BUS][format error] Cannot play stream of type: <unknown>";
     } else {
-      self->pipelineEventNotify (self, MEDIA_CB_MSG_ERR_PLAYING);
+      self->notifyPipelineEvent (self, MEDIA_CB_MSG_ERR_PLAYING);
       std::cout <<
                 "[BUS][resource error] Cannot play stream of type: <unknown>";
     }
@@ -1556,13 +1774,13 @@ Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
              (pErr->domain == GST_STREAM_ERROR) &&
              (pErr->code == GST_STREAM_ERROR_DECODE)) {
     std::cout << "[BUS] decode error from adecsink!!!";
-    self->pipelineEventNotify (self, MEDIA_CB_MSG_ERR_AUDIO_DECODING_FAILED);   //(MSG_MF2UI_AUDIO_DECODING_FAILED);
+    self->notifyPipelineEvent (self, MEDIA_CB_MSG_ERR_AUDIO_DECODING_FAILED);   //(MSG_MF2UI_AUDIO_DECODING_FAILED);
   } else if ((strncmp (GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage)), "source",
                        strlen ("source")) == 0) && (self->m_bNeedToRestart == true)) {
     /* live asf - protocol module want to play againg at error detect case (requirement of ORANGE pl sport) */
     std::cout <<
               "[BUS][%s:%d] error from soup http (asf live) -> play again!!!";
-    self->pipelineEventNotify (self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
+    self->notifyPipelineEvent (self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
   } else if ((strncmp (GST_OBJECT_NAME (GST_MESSAGE_SRC (pMessage)), "source",
                        strlen ("source")) == 0)
              && (strncmp (G_OBJECT_TYPE_NAME (GST_MESSAGE_SRC (pMessage)),
@@ -1594,7 +1812,7 @@ Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
 
         //TODO std::cout << "[BUS][%s] new uri :" << __FUNCTION__ << self->m_pNewUri);
 
-        self->pipelineEventNotify (self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
+        self->notifyPipelineEvent (self, MEDIA_CB_MSG_REQ_ONLY_PLAY_AGAIN);
       }
     }
 #endif
@@ -2052,7 +2270,7 @@ gboolean Pipeline::updatePlayPosition(gpointer data){
   if (self->m_bEndOfFile && PLAYBIN2_IsUsing())
   {
     g_print("[TIMER][%s] bEndOfFile!\n", __FUNCTION__);
-    pipelineEventNotify(self, MEDIA_CB_MSG_PLAYEND);
+    notifyPipelineEvent(self, MEDIA_CB_MSG_PLAYEND);
     return TRUE;
   }
 #endif
@@ -2091,7 +2309,7 @@ gboolean Pipeline::updatePlayPosition(gpointer data){
     {
       self->m_currentPosition = pos;
       gint64 currentPositionInMs = (gint64)(pos / GST_MSECOND);
-      self->sendPositionUpdate(currentPositionInMs);
+      self->notifyPositionUpdate(self, currentPositionInMs);
     }
 
   }
@@ -2192,7 +2410,7 @@ gboolean Pipeline::updateDuration(gpointer data){
     if (self->m_duration > 0)
     {
       //EmitDurationLogToBSI(self->m_duration / GST_MSECOND, FALSE);
-      self->sendDuration((self->m_duration)/GST_MSECOND); // send to UMS.. // convert to MSEC.
+      self->notifyDuration(self, (self->m_duration)/GST_MSECOND); // send to UMS.. // convert to MSEC.
       return FALSE;
     }
     else

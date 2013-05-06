@@ -62,6 +62,16 @@ public:
   virtual gboolean isSeekable () const = 0;   /* get seekable status */
   virtual gfloat playbackRate () const = 0;   /* get current playback rate */
 
+//multi
+  virtual gboolean getAudioLanguagesList(gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum) = 0;
+  virtual gboolean setAudioLanguage(char *pAudioLang) = 0;
+  virtual gboolean setAudioTrack(gint AudioTrackNum) = 0;
+  virtual gboolean getCurAudioLanguage(char **ppAudioLang) = 0;
+  virtual gboolean getCurAudioTrack(gint *pCurAudioTrackNum) = 0;
+  virtual gboolean getTotalVideoAngle(gint *pTotalVideoAngleNum) = 0;
+  virtual gboolean setVideoAngle(gint VideoAngleNum) = 0;
+  virtual gboolean getCurrentVideoAngle(gint *pCurrentVideoAngleNum) = 0;
+
   //virtual Error error() const;
   virtual GString errorString () const = 0;
   virtual bool setGstreamerDebugLevel (guint select, gchar * category,

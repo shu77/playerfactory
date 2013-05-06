@@ -3,6 +3,8 @@
  *
  *  Created on: 2013. 4. 5.
  *      Author: jeongseok.kim
+ *  Modified on: 2013. 5. 5.
+ *      Modifier: mf-dev
  */
 
 #include <gst/gst.h>
@@ -13,8 +15,12 @@
 #include <gst/gst.h>
 #include <pthread.h>
 #include <gio/gio.h>
-
+#include <cstring>
+#if (GST_VERSION_MAJOR >= 1)
+#include <gst/video/video.h>
+#else
 //#include <gst/app/gstappbuffer.h>//playbin+appsrc not support at NC5.0
+#endif
 #ifdef USE_GLIB_MMUTILS
 #include <glibmm-utils/glibmm-utils.h>
 #else
@@ -543,27 +549,22 @@ void GenericPipeline::getStreamsInfoSpi(gpointer data)
   gint audioTrackCount = 0;
   gint videoTrackCount = 0;
 
-  //if ( ->bUsePlaybin2)
-  {
-    g_object_get(G_OBJECT(self->m_pipeHandle), "n-audio", &audioTrackCount, NULL);
-    g_object_get(G_OBJECT(self->m_pipeHandle), "n-video", &videoTrackCount, NULL);
+  g_object_get(G_OBJECT(self->m_pipeHandle), "n-audio", &audioTrackCount, NULL);
+  g_object_get(G_OBJECT(self->m_pipeHandle), "n-video", &videoTrackCount, NULL);
+  g_print("n-audio = %d   \r\n", audioTrackCount);
+  g_print("n-video = %d   \r\n", videoTrackCount);
 
-    g_print("n-audio = %d   \r\n", audioTrackCount);
-    g_print("n-video = %d   \r\n", videoTrackCount);
-  }
-  //else
-  //{
-  //  g_print(" STATIC pipeline playback mode. \r\n");
-  //}
-
-  if (audioTrackCount > 0)
-  {
+  if (audioTrackCount > 0){
     self->m_bAudioAvailable = TRUE;
+    self->S_audioChanged (self->m_pipeHandle, (gpointer)self); // sink attached lately.  //TODO: check audio-changed signal at gst core.
+    /* notify total audio track list to upper layer. */
+    //PLAYBIN_UpdateAudioTrackinfo(self);
   }
-
-  if (videoTrackCount > 0)
-  {
+  if (videoTrackCount > 0){
     self->m_bVideoAvailable = TRUE;
+    self->S_videoChanged (self->m_pipeHandle, (gpointer)self); // sink attached lately.  //TODO: check video-changed signal at gst core.
+    /* notify total video angle list to upper layer. */
+    //PLAYBIN_UpdateVideoAngleinfo(self);
   }
 }
 
@@ -790,4 +791,454 @@ gboolean GenericPipeline::checkTimeToDecodeSpi(gpointer data)
   return true;
 }
 */
+
+//multi track audio, multi angle video APIs
+/**
+* freeGList
+* free the pList
+*
+* @param pList [in/out] list pointer
+* @return void
+* @see
+*/
+gboolean GenericPipeline::freeGList(GList *pList)
+{
+    GList *pTempList = NULL;
+    for (pTempList=pList ; pTempList!=NULL ; pTempList=pTempList->next)
+    {
+        g_free (pTempList->data);
+    }
+    g_list_free (pList);
+    pList = NULL;
+    return true;
+}
+
+/**
+* _PLAYBIN_GetLangListForType
+* get the audio or text language list
+*
+* @param pPlayerHandle [in] player handle
+* @param numOfTrack [in] total num of track
+* @param pSignalStr [in] signal name to emit
+* @return if succeeded - language list, else - NULL
+* @see
+*/
+GList* GenericPipeline::getLangListForType(gpointer data, gint numOfTrack, const gchar *pSignalStr)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  GList   *pLangList      = NULL;
+  gchar   *pLangCodeList  = NULL;
+  gchar   *pCodecList     = NULL;
+  gint    idx             = 0;
+  gint    trackNum        = 1;
+
+  if ((self->m_pipeHandle == NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == FALSE))
+  {
+    g_print("[%s:%d] Error. Player Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return NULL;
+  }
+  for (idx = 0 ; idx < numOfTrack ; idx++)
+  {
+    GstTagList *pTags = NULL;
+    g_signal_emit_by_name(G_OBJECT(self->m_pipeHandle), pSignalStr, idx, &pTags);
+    if (pTags)
+    {
+      gboolean res1=0; // fix for WBTest 0810010
+      gboolean res2=0;
+      res1 = gst_tag_list_get_string(pTags, GST_TAG_LANGUAGE_CODE, &pLangCodeList);
+      res2 = gst_tag_list_get_string(pTags, GST_TAG_CODEC, &pCodecList);
+
+      if (res1==1 && pLangCodeList)
+      {
+        pLangList = g_list_prepend(pLangList, pLangCodeList);
+        g_free(pCodecList);
+      }
+      else if (res2 == 1 && pCodecList)
+      {
+        pLangList = g_list_prepend(pLangList, pCodecList);
+      }
+      else
+      {
+        pLangList = g_list_prepend(pLangList, g_strdup_printf(("A-Track #%d"), trackNum++));
+      }
+      gst_tag_list_free(pTags);
+    }
+    else
+    {
+      pLangList = g_list_prepend(pLangList, g_strdup_printf(("A-Track #%d"), trackNum++));
+    }
+  }
+  return g_list_reverse(pLangList);
+}
+
+gboolean GenericPipeline::getAudioLanguagesListSpi(gpointer data, gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. pipe container Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  if ((self->m_pipeHandle == NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == false) )
+  {
+    g_print("[%s:%d] Error. Gstreamer Player Handle is NULL or not playbin!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+
+  GList   *pList = NULL;
+  gint    numOfTrack = 0;
+  g_object_get(G_OBJECT(self->m_pipeHandle), "n-audio", &numOfTrack, NULL);
+  if (numOfTrack != 0)
+  {
+    pList = self->getLangListForType(self, numOfTrack, (const char *)"get-audio-tags");
+  }
+#if 0 // fixed for MHP..
+  /* When we have only one language, we don't need to show
+  * any languages, we default to the only track */
+  if (pList !=NULL && g_list_length (pList) == 1)
+  {
+    MEDIAPIPE_DBG_PRINT("only one track. found !!! \r\n");
+    g_free (pList->data);
+    g_list_free (pList);
+    pList = NULL;
+  }
+#endif
+  *pTotalLangNum = numOfTrack;
+  
+  if(pList == NULL)
+  {
+    g_print("not multi audio track playback case. \r\n");
+    return false;
+  }
+  else
+  {
+    g_print("[getAudioLanguagesListSpi] multi audio track playback case. \r\n");
+    //*pTotalLangNum = g_list_length(pList);
+    //if (*pTotalLangNum <= 1)
+    if(g_list_length(pList)<1 || *pTotalLangNum<1)
+    {
+      g_print("not multi audio track playback case. \r\n");
+      //*pTotalLangNum = 1;
+      return false;
+    }
+    if (*pTotalLangNum > MAX_LANGUAGE_LIST_NUM)
+      *pTotalLangNum = MAX_LANGUAGE_LIST_NUM;
+    *pLangListSize = MAX_LANGUAGE_STR_LENGTH * (*pTotalLangNum);
+    g_print("memory allocation for string array. \r\n");
+    *ppLangList = (char *)calloc(1, (size_t)(*pLangListSize)); // alloc send array
+    if ((*ppLangList) == NULL)
+    {
+      g_print("[media_API] error memory calloc fail.!!! size=%d \r\n", *pTotalLangNum * MAX_LANGUAGE_STR_LENGTH);
+      return false;
+    }
+    g_print("[getAudioLanguagesListSpi] copy language field.\r\n");
+    int idx=0;
+    for (idx=0 ; idx<(*pTotalLangNum) ; idx++) // copy to array
+    {
+      g_print("[getAudioLanguagesListSpi][%d of %d]%s \r\n", idx, *pTotalLangNum, (char *)(pList->data));
+      strcpy((*ppLangList) + (MAX_LANGUAGE_STR_LENGTH*idx), (char *)(pList->data));
+      if (pList->next != NULL)
+      pList = pList->next;
+    }
+    pList = g_list_first(pList);
+    self->freeGList(pList);
+  }
+  return true;
+}
+gboolean GenericPipeline::setAudioLanguageSpi(gpointer data, char *pAudioLang){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  gboolean retVal = false;
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. pipe container Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  if ((self->m_pipeHandle== NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == false) )
+  {
+    g_print("[%s:%d] Error. Gstreamer Player Handle is NULL or not playbin!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  gint TotalLangNum =1;
+  gchar *langStr = NULL;
+  gint StrLength = 0;
+  int lang_index = -1;
+  if(self->getAudioLanguagesListSpi(self, &langStr, &StrLength, &TotalLangNum)==false)
+    return false;
+  g_print("Total Language Number = %d, Received String Length = %d \r\n",TotalLangNum,  StrLength);
+  if(TotalLangNum>0 && StrLength>0)
+  {
+    // multi track playback
+    int offset = 0;
+    if(TotalLangNum>MAX_LANGUAGE_LIST_NUM)
+    TotalLangNum = MAX_LANGUAGE_LIST_NUM;
+    for(int i=0; i<TotalLangNum; i++)
+    {
+      g_print("%s>[num:%d][offset:%d][str_len=%ld][%s] \r\n ",__FUNCTION__, i, offset, strlen(langStr+offset), (langStr+offset));
+      if(strcmp((langStr+offset),pAudioLang)==0)
+      {
+        lang_index = i;
+        g_print("%s we found language. %s at i=%d \r\n",__FUNCTION__,pAudioLang,i );
+        break;
+      }
+      offset = offset + MAX_LANGUAGE_STR_LENGTH;
+    }
+    if(lang_index != -1){
+      retVal = self->setAudioTrackSpi(self, lang_index);
+    }
+  }
+  else{
+    // no track
+  }
+  if(langStr!=NULL)  {
+    g_print(" free memory. langStr. \r\n");
+    free(langStr);
+  }
+  langStr = NULL;
+  return true;
+}
+gboolean GenericPipeline::setAudioTrackSpi(gpointer data, gint AudioTrackNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. pipe container Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  if ((self->m_pipeHandle== NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == false) )
+  {
+    g_print("[%s:%d] Error. Gstreamer Player Handle is NULL or not playbin!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  if (AudioTrackNum == -1)
+    AudioTrackNum = 0;
+  else if (AudioTrackNum == -2)
+    AudioTrackNum = -1;
+  g_print("setting language to %d \r\n", AudioTrackNum);
+  g_object_set(self->m_pipeHandle, "current-audio", AudioTrackNum, NULL);
+  g_object_get(self->m_pipeHandle, "current-audio", &AudioTrackNum, NULL);
+  g_print("current-audio now: %d \r\n", AudioTrackNum);
+  return true;
+}
+gboolean GenericPipeline::getCurAudioLanguageSpi(gpointer data, char **ppAudioLang){
+  return true;
+}
+gboolean GenericPipeline::getCurAudioTrackSpi(gpointer data, gint *pCurAudioTrackNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. pipe container Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  if ((self->m_pipeHandle == NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == false) )
+  {
+    g_print("[%s:%d] Error. Gstreamer Player Handle is NULL or not playbin!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  *pCurAudioTrackNum = -1;
+  g_print("[%s:%d] g_object_get  current-audio \n", __FUNCTION__, __LINE__);
+  g_object_get(G_OBJECT(self->m_pipeHandle), "current-audio", pCurAudioTrackNum, NULL);
+  g_print("[%s:%d] g_object_get  current-audio = %d \n", __FUNCTION__, __LINE__, *pCurAudioTrackNum);
+  return true;
+}
+gboolean GenericPipeline::getTotalVideoAngleSpi(gpointer data,  gint *pTotalVideoAngleNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. pipe container Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  if ((self->m_pipeHandle== NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == false) )
+  {
+    g_print("[%s:%d] Error. Gstreamer Player Handle is NULL or not playbin!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  guint n_video = 0;
+  g_object_get (G_OBJECT(self->m_pipeHandle), "n-video", &n_video, NULL);
+  g_print("[%s] TotalVideoAngle = %d \n", __FUNCTION__, n_video);
+  *pTotalVideoAngleNum = n_video;
+  return true;
+}
+gboolean GenericPipeline::setVideoAngleSpi(gpointer data, gint VideoAngleNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. pipe container Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  if ((self->m_pipeHandle== NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == false) )
+  {
+    g_print("[%s:%d] Error. Gstreamer Player Handle is NULL or not playbin!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  guint n_video = 0;
+  g_print("[%s] set VideoAngleNum = %d \n", __FUNCTION__, VideoAngleNum);
+
+  g_object_get (G_OBJECT(self->m_pipeHandle), "n-video", &n_video, NULL);
+  if (n_video <= 1 || VideoAngleNum+1 > n_video)
+  {
+    g_print ("Not setting video stream, we have %d video streams \r\n", n_video);
+    return false;
+  }
+  g_object_set (G_OBJECT (self->m_pipeHandle), "current-video", VideoAngleNum, NULL);
+  return true;
+}
+gboolean GenericPipeline::getCurrentVideoAngleSpi(gpointer data, gint *pCurrentVideoAngleNum){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if (self == NULL)
+  {
+    g_print("[%s:%d] Error. pipe container Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  if ((self->m_pipeHandle== NULL) || (GST_IS_ELEMENT(self->m_pipeHandle) == false) )
+  {
+    g_print("[%s:%d] Error. Gstreamer Player Handle is NULL or not playbin!!!  \n", __FUNCTION__, __LINE__);
+    return false;
+  }
+  guint current_video = 0;
+  g_object_get (G_OBJECT(self->m_pipeHandle), "current-video", &current_video, NULL);
+  g_print("[%s] CurrentVideoAngleNum = %d \n", __FUNCTION__, current_video);
+  *pCurrentVideoAngleNum = current_video;
+  return true;
+}
+// end 
+
+gint GenericPipeline::greatestCommonDivisor(int a, int b)
+{
+    while (b) {
+        int temp = a;
+        a = b;
+        b = temp % b;
+    }
+    return ABS(a);
+}
+
+gboolean GenericPipeline::videoChangeTimeoutCallback(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if(self == NULL || self->m_pipeHandle == NULL)
+    return false;
+  
+  GstElement* element = self->m_pipeHandle;
+  
+  gint videoTracks = 0;
+  GstElement* videoSink = NULL;
+  g_print("element = %p \r\n", element);
+  g_object_get(element, "n-video", &videoTracks, "video-sink", &videoSink, NULL);
+  if(videoSink == NULL)
+  {
+    g_print("videoSink = %p \r\n", videoSink);
+    return false;
+  }
+  GstPad* pad = gst_element_get_static_pad(videoSink, "sink");
+#if (GST_VERSION_MAJOR >= 1)
+  GstCaps* caps = gst_pad_get_current_caps(pad);
+#else
+  GstCaps* caps = GST_PAD_CAPS(pad);
+#endif
+  guint64 width = 0, height = 0;
+  gint originalWidth, originalHeight;
+  GstVideoFormat format;
+  int pixelAspectRatioNumerator, pixelAspectRatioDenominator;
+#if (GST_VERSION_MAJOR >= 1)
+  GstVideoInfo videoinfo;
+#if 0 //TODO : resolve linking issue. ../src/libpf.so: undefined reference to `gst_video_info_from_caps'
+  if (!GST_IS_CAPS(caps) || !gst_caps_is_fixed(caps)
+  || !gst_video_info_from_caps(&videoinfo ,caps))
+    goto clean_res;
+#endif  
+  originalWidth = videoinfo.width;
+  originalHeight = videoinfo.height;
+  pixelAspectRatioNumerator = videoinfo.par_n;
+  pixelAspectRatioDenominator = videoinfo.par_d;
+#else
+  if (!GST_IS_CAPS(caps) || !gst_caps_is_fixed(caps)
+  || !gst_video_format_parse_caps(caps, &format, &originalWidth, &originalHeight)
+  || !gst_video_parse_caps_pixel_aspect_ratio(caps, &pixelAspectRatioNumerator,
+                        &pixelAspectRatioDenominator))
+    goto clean_res;
+#endif
+  // Calculate DAR based on PAR and video size.
+  int displayWidth;
+  displayWidth = originalWidth * pixelAspectRatioNumerator;
+  int displayHeight;
+  displayHeight = originalHeight * pixelAspectRatioDenominator;
+
+  // Divide display width and height by their GCD to avoid possible overflows.
+  int displayAspectRatioGCD ;
+  displayAspectRatioGCD = self->greatestCommonDivisor(displayWidth, displayHeight);
+  displayWidth /= displayAspectRatioGCD;
+  displayHeight /= displayAspectRatioGCD;
+
+  // Apply DAR to original video size. This is the same behavior as in xvimagesink's setcaps function.
+  if (!(originalHeight % displayHeight)) {
+    g_print("Keeping video original height");
+    width = gst_util_uint64_scale_int(originalHeight, displayWidth, displayHeight);
+    height = (guint64) originalHeight;
+  } else if (!(originalWidth % displayWidth)) {
+    g_print("Keeping video original width");
+    height = gst_util_uint64_scale_int(originalWidth, displayHeight, displayWidth);
+    width = (guint64) originalWidth;
+  } else {
+    g_print("Approximating while keeping original video height");
+    width = gst_util_uint64_scale_int(originalHeight, displayWidth, displayHeight);
+    height = (guint64) originalHeight;
+  }
+  g_print("Natural size: %" G_GUINT64_FORMAT "x%" G_GUINT64_FORMAT, width, height);
+clean_res:
+  gst_caps_unref(caps);
+  gst_object_unref(pad);
+  gst_object_unref(videoSink);
+
+  self->notifyVideoTrackUpdate(self, videoTracks > 0, width, height);
+
+  return FALSE;
+}
+
+void GenericPipeline::S_videoChanged (GstElement* element, gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if(self == NULL || self->m_pipeHandle == NULL)
+    return;
+  g_warning("S_videoChanged: invoked \n");
+  g_print("[%s:%d] S_videoChanged: invoked  \n", __FUNCTION__, __LINE__);
+  // This function is called in the GStreamer streaming thread, so schedule
+  // a function to be executed in the main thread to comply with luna-service
+  // requirements.
+  g_timeout_add(0, (GSourceFunc) videoChangeTimeoutCallback, (gpointer)self); // <--- TODO! check... 
+}
+
+gboolean GenericPipeline::audioChangeTimeoutCallback(gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if(self == NULL || self->m_pipeHandle == NULL)
+    return false;
+  gint audioTracks = 0;
+  g_object_get(self->m_pipeHandle, "n-audio", &audioTracks, NULL);
+  self->notifyAudioTrackUpdate(self, audioTracks > 0);
+  return FALSE;
+}
+
+void GenericPipeline::S_audioChanged (GstElement* element, gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if(self == NULL || self->m_pipeHandle == NULL)
+    return;
+  g_warning("S_audioChanged: invoked \n");
+  g_print("[%s:%d] S_audioChanged: invoked  \n", __FUNCTION__, __LINE__);
+
+  // This function is called in the GStreamer streaming thread, so schedule
+  // a function to be executed in the main thread to comply with luna-service
+  // requirements.
+  g_timeout_add(0, (GSourceFunc) audioChangeTimeoutCallback, self); // <--- TODO! check... 
+}
 

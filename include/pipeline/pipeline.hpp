@@ -35,6 +35,10 @@ using namespace std;
 #define SOUP_HTTP_SRC_TIMEOUT 30 
 #define BUFF_ADJ_MAX (5*1024*1024)
 
+// multi track playback.
+#define MAX_LANGUAGE_STR_LENGTH 32
+#define MAX_LANGUAGE_LIST_NUM 16
+
 #define LMF_TO_LOWER(src)           \
   do{                   \
         for(int i = 0; i < strlen(src); i++)  \
@@ -142,6 +146,7 @@ public:
   Options::bsp_t getOptionsHandler ();
   InformationHandler::bsp_t getInformationHandler ();
 
+  // basic control APIs
   virtual gboolean loadSpi_pre () = 0;
   gboolean load (const std::string optionString);
   virtual gboolean loadSpi_post () = 0;
@@ -150,10 +155,8 @@ public:
   gboolean play (int rate = 1);
   gboolean pause ();
   gboolean stop ();
-  
   gboolean createSeekResource();
   gboolean releaseSeekResource();
-
   gboolean seek (gint64 ms);
   virtual gboolean seekSpi (gint64 ms){
     return seekCommon(ms);
@@ -202,9 +205,77 @@ public:
   virtual gboolean setServerSideTrick(gpointer data, gboolean serverSideTrick){
     return true;
   }
-
-  //end seek,trick
-
+  
+  //multi track audio, multi angle video APIs
+  gboolean getAudioLanguagesList(gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum);
+  gboolean getAudioLanguagesListCmn(gpointer data, gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum);
+  virtual gboolean getAudioLanguagesListSpi(gpointer data, gchar **ppLangList, gint *pLangListSize, gint *pTotalLangNum){
+    g_print("getAudioLanguagesListSpi not supported!!! \r\n");
+    return false;
+  }
+  gboolean setAudioLanguage(char *pAudioLang);
+  gboolean setAudioLanguageCmn(gpointer data, char *pAudioLang);
+  virtual gboolean setAudioLanguageSpi(gpointer data, char *pAudioLang){
+    g_print("setAudioLanguagesListSpi not supported!!! \r\n");
+    return false;
+  }
+  gboolean setAudioTrack(gint AudioTrackNum);
+  gboolean setAudioTrackCmn(gpointer data, gint AudioTrackNum);
+  virtual gboolean setAudioTrackSpi(gpointer data, gint AudioTrackNum){
+    g_print("setAudioTrackSpi not supported!!! \r\n");
+    return false;
+  }
+  gboolean getCurAudioLanguage(char **ppAudioLang);
+  gboolean getCurAudioLanguageCmn(gpointer data, char **ppAudioLang);
+  virtual gboolean getCurAudioLanguageSpi(gpointer data, char **ppAudioLang){
+    g_print("getCurAudioLanguageSpi not supported!!! \r\n");
+    return false;
+  }
+  gboolean getCurAudioTrack(gint *pCurAudioTrackNum);
+  gboolean getCurAudioTrackCmn(gpointer data, gint *pCurAudioTrackNum);
+  virtual gboolean getCurAudioTrackSpi(gpointer data, gint *pCurAudioTrackNum){
+    g_print("getCurAudioTrackSpi not supported!!! \r\n");
+    return false;
+  }
+  gboolean getTotalVideoAngle(gint *pTotalVideoAngleNum);
+  gboolean getTotalVideoAngleCmn(gpointer data, gint *pTotalVideoAngleNum);
+  virtual gboolean getTotalVideoAngleSpi(gpointer data, gint *pTotalVideoAngleNum){
+    g_print("getTotalVideoAngleSpi not supported!!! \r\n");
+    return false;
+  }
+  gboolean setVideoAngle(gint VideoAngleNum);
+  gboolean setVideoAngleCmn(gpointer data, gint VideoAngleNum);
+  virtual gboolean setVideoAngleSpi(gpointer data, gint VideoAngleNum){
+    g_print("setVideoAngleSpi not supported!!! \r\n");
+    return false;
+  }
+  gboolean getCurrentVideoAngle(gint *pCurrentVideoAngleNum);
+  gboolean getCurrentVideoAngleCmn(gpointer data, gint *pCurrentVideoAngleNum);
+  virtual gboolean getCurrentVideoAngleSpi(gpointer data, gint *pCurrentVideoAngleNum){
+    g_print("getCurrentVideoAngleSpi not supported!!! \r\n");
+    return false;
+  }
+  virtual GList* getLangListForType(gpointer data, gint numOfTrack, const gchar *pSignalStr){
+    return NULL;
+  }
+  virtual gboolean freeGList(GList *pList){
+    return false;
+  }
+  // end 
+// only for playbin //
+  virtual void S_videoChanged (GstElement* element, gpointer data){
+  }
+  //virtual gboolean videoChangeTimeoutCallback(gpointer data){
+  //  return false;
+  //}
+  virtual gint greatestCommonDivisor(int a, int b){
+    return false;
+  }
+  virtual void S_audioChanged (GstElement* element, gpointer data){
+  }
+  //virtual gboolean audioChangeTimeoutCallback(gpointer data){
+  //  return false;
+  //}
   gint64 duration (gpointer data);
   gint64 duration ();
   gint64 position (gpointer data, gboolean bReadAgain);
@@ -220,9 +291,15 @@ public:
   gboolean isSeekable (gpointer data);
 
   /* notify state change */
-  void pipelineEventNotify (gpointer data, MEDIA_CB_MSG_T msg);
-  bool sendDuration(gint64 duration);
-  bool sendPositionUpdate(gint64 currPosition);
+  gboolean notifyPipelineEvent (gpointer data, MEDIA_CB_MSG_T msg);
+  gboolean notifyDuration(gpointer data, gint64 duration);
+  gboolean notifyPositionUpdate(gpointer data, gint64 positionInMs);
+  gboolean notifyAudioTrackInfo (gpointer data, int trackNum, char *languageList);
+  gboolean notifyVideoAngleInfo (gpointer data, int angleNum);
+  gboolean notifyStateUpdate(gpointer data, const char * state, bool ready);
+  gboolean notifyErrorUpdate(gpointer data, gint64 errorEnum);
+  gboolean notifyVideoTrackUpdate(gpointer data, bool hasVideo, guint64 width, guint64 height);
+  gboolean notifyAudioTrackUpdate(gpointer data, bool hasAudio);
 
   void stateChanged (Pipeline::State state);
   void seekableStateChanged (bool seekable);

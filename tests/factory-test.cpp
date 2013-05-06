@@ -95,7 +95,17 @@ main (int argc, char **argv)
     std::cout << " 19. get duration \n";
     std::cout <<
               "============================================================= \n";
-    std::cout << " 21. load (stream)\n";
+    std::cout << " 20. getAudioLanguagesList \n";
+    std::cout << " 21. setAudioLanguage \n";
+    std::cout << " 22. setAudioTrack \n";
+    std::cout << " 23. getCurAudioLanguage \n";
+    std::cout << " 24. getCurAudioTrack \n";
+    std::cout << " 25. getTotalVideoAngle \n";
+    std::cout << " 26. setVideoAngle \n";
+    std::cout << " 27. getCurrentVideoAngle \n";
+    std::cout <<
+              "============================================================= \n";
+    std::cout << " 51. load (stream)\n";
     std::cout <<
               "============================================================= \n";
     std::cout << " 99. Exit \n";
@@ -193,8 +203,88 @@ main (int argc, char **argv)
     case 19:
       player->duration ();
       break;
-
+    case 20:
+    {
+      gchar *pLangList = NULL;
+      gint LangListSize;
+      gint TotalLangNum;
+      player->getAudioLanguagesList(&pLangList, &LangListSize, &TotalLangNum);
+    }
+      break;
     case 21:
+    {
+      std::string num;
+      gfloat temp;
+      num.clear ();
+      std::cout << "Input audio language to set(kr,en,it,jp):";
+      getline (std::cin, num);
+
+      //temp = std::atof (num.c_str ());
+      std::cout << "language inputed : " << num.c_str () << endl;
+      char *string = strdup(num.c_str ());
+      player->setAudioLanguage(string);
+      free(string);
+      num.clear();
+    }
+    break;
+    case 22:
+    {
+      std::string num;
+      gfloat temp;
+      num.clear ();
+      std::cout << "Input audio track num:";
+      getline (std::cin, num);
+
+      temp = std::atof (num.c_str ());
+      std::cout << "track num inputed : " << temp << endl;
+      player->setAudioTrack(temp);
+      num.clear();
+    }
+    break;
+    case 23:
+    {
+      char *audioLanguage = NULL;
+      player->getCurAudioLanguage(&audioLanguage);
+      g_print("current audio language is : %s \r\n", audioLanguage);
+      free(audioLanguage);
+    }
+    break;
+    case 24:
+    {
+      gint currentAudioTrackNum = -1;
+      player->getCurAudioTrack(&currentAudioTrackNum);
+      g_print("current audio track is : %d \r\n", currentAudioTrackNum);
+    }
+    break;
+    case 25:
+    {
+      gint TotalVideoAngleNum = -1;
+      player->getTotalVideoAngle(&TotalVideoAngleNum);
+    }
+    break;
+    case 26:
+    {
+      std::string num;
+      gfloat temp;
+      num.clear ();
+      std::cout << "Input video angle num:";
+      getline (std::cin, num);
+
+      temp = std::atof (num.c_str ());
+      std::cout << "angle num inputed : " << temp << endl;
+      player->setVideoAngle(temp);
+      num.clear();
+    }
+    break;
+    case 27:
+    {
+      gint CurrentVideoAngleNum = -1;
+      player->getCurrentVideoAngle(&CurrentVideoAngleNum);
+      g_print("current video angle is : %d \r\n", CurrentVideoAngleNum);
+    }
+    break;
+
+    case 51:
     {
       if(pipeCreated == false)
         player = pf1->create (MEDIA_TRANS_BUFFERSTREAM);
