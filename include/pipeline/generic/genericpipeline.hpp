@@ -20,10 +20,10 @@ namespace mediapipeline
     friend class GenericPlayer;
 
   private:
-    GenericPipeline ();
     static void playbinNotifySource (GObject * o, GParamSpec * p, gpointer d);
 
   public:
+    GenericPipeline ();
     ~GenericPipeline ();
 
     /* basic playback control */

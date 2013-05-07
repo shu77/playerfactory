@@ -1749,9 +1749,67 @@ gboolean Pipeline::handleBusPlayerMessage (gpointer data, GstMessage * pMessage)
 
   return true;
 }
+void Pipeline::convertGstreamerErrorMessage (gpointer data, GQuark domain, gint code)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
 
-gboolean
-Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
+  //LMF_ERR_MSG_T *errTable = NULL;
+  MEDIA_CB_MSG_T msg = MEDIA_CB_MSG_ERR_PLAYING;
+  guint8 errIdx = 0;
+  if (self == NULL)
+  {
+    g_print("[BUS][%s:%d] Error. LMF Player Handle is NULL!!!  \n", __FUNCTION__, __LINE__);
+    return;
+  }
+  g_print("[BUS][%s:%d] ERROR code:0x%X, domain: 0x%X\n", __FUNCTION__, __LINE__, code, domain);
+  //kimsw 20121122 : Fixed - Mapping gst error msg to lmf based on domain value.
+  if (domain == GST_CORE_ERROR)
+  {
+    g_print("[BUS][%s:%d] domain(GST_CORE_ERROR):0x%X\n", __FUNCTION__, __LINE__, domain);
+    //errTable = _coreErrTable;
+  }
+  else if (domain == GST_LIBRARY_ERROR)
+  {
+    g_print("[BUS][%s:%d] domain(GST_LIBRARY_ERROR):0x%X\n", __FUNCTION__, __LINE__, domain);
+    //errTable = _libraryErrTable;
+  }
+  else if (domain == GST_RESOURCE_ERROR)
+  {
+    g_print("[BUS][%s:%d] domain(GST_RESOURCE_ERROR):0x%X\n", __FUNCTION__, __LINE__, domain);
+    //errTable = _resourceErrTable;
+  }
+  else if (domain == GST_STREAM_ERROR)
+  {
+    g_print("[BUS][%s:%d] domain(GST_STREAM_ERROR):0x%X\n", __FUNCTION__, __LINE__, domain);
+    //errTable = _streamErrTable;
+  }
+  else
+  {
+    g_print("[BUS][%s:%d] ERROR domain not defined domain:0x%X\n", __FUNCTION__, __LINE__, domain);
+    return;
+  }
+
+  //if (errTable == NULL)
+  //{
+  //  g_print("[BUS][%s:%d] ERROR. errTable is NULL!!!  \n", __FUNCTION__, __LINE__);
+  //  return;
+  //}
+
+  //while (errTable[errIdx].errCode != 0x00)
+  //{
+  //  if (errTable[errIdx].errCode == code)
+  //  {
+  //    msg = errTable[errIdx].errMsg;
+  //    break;
+  //  }
+  //  errIdx++;
+  //}
+  //g_print("[BUS][%s:%d] ERROR errIdx:0x%X, msg: 0x%X\n", __FUNCTION__, __LINE__, errIdx, msg);
+  g_print("[BUS][%s:%d] ERROR msg: 0x%X\n", __FUNCTION__, __LINE__, msg);
+  self->notifyPipelineEvent (self, MEDIA_CB_MSG_ERR_PLAYING); //TODO:: detailed msg toss up.
+}
+
+gboolean Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
 {
   Pipeline *self = reinterpret_cast < Pipeline * >(data);
 
@@ -1829,7 +1887,7 @@ Pipeline::handleBusElementMessage (gpointer data, GstMessage * pMessage)
 #endif
   } else {                      /* 위에 해당되지 않는 경우는 error 올려주면  MF 단에서 Stop 명령 내려옴 */
 
-    //TODO _LMF_PLYR_BUS_ConvertGstMsgToLmf(pPlayerHandle, pErr->domain, pErr->code);
+    self->convertGstreamerErrorMessage(self, pErr->domain, pErr->code);
     //TODO _LMF_PLYR_BUS_EmitErrorLogToBSI(pMessage, pErr, pDebug);
   }
 

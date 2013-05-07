@@ -14,6 +14,7 @@
 #include <pipeline/playerfactory.hpp>
 #include <pipeline/generic/genericplayer.hpp>
 #include <pipeline/custom/customplayer.hpp>
+#include <pipeline/generic/dlnaplayer.hpp>
 
 using namespace std;
 using namespace mediapipeline;
@@ -83,8 +84,16 @@ Player::bsp_t PlayerFactory::create (unsigned int transport_type)
   // 1. check transport type.
   if (transport_type >= MEDIA_TRANS_PLAYBIN_START
       && transport_type <= MEDIA_TRANS_PLAYBIN_START) {
-    cout << "create GenericPlayer" << endl;
-    player.reset (new GenericPlayer ());
+    cout << "create GenericPlayer group" << endl;
+
+    switch(transport_type){
+      case MEDIA_TRANS_DLNA:
+        player.reset (new DlnaPlayer ());
+        break;
+      default :
+        player.reset (new GenericPlayer ());
+        break;
+    }
   }
   else if(transport_type >= MEDIA_TRANS_STATIC_START
         && transport_type <= MEDIA_TRANS_STATIC_END) {

@@ -187,6 +187,8 @@ public:
   void handleStateMsgPause (gpointer data, GstState oldState);
   void handleStateMsgPlay (gpointer data);
 
+  void convertGstreamerErrorMessage (gpointer data, GQuark domain, gint code);
+
   static void handleVolumeChange (GObject * o, GParamSpec * p, gpointer d);
   static void handleMutedChange (GObject * o, GParamSpec * p, gpointer d);
   static gboolean gstBusCallbackHandle (GstBus * pBus, GstMessage * pMessage,
@@ -305,7 +307,7 @@ public:
   virtual void handlePlayEndSpi(gpointer data){}
   void handlePlayError(gpointer data);
   virtual void handlePlayErrorSpi(gpointer data){}
- 
+
   void stateChanged (Pipeline::State state);
   void seekableStateChanged (bool seekable);
   void playbackRateChanged (gfloat rate);

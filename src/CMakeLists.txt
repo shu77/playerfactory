@@ -11,7 +11,7 @@ if(OPTION_MMUTILS)
 endif(OPTION_MMUTILS)
 
 set(OBJS playerfactory abstractplayer pipeline genericplayer genericpipeline
-         options customplayer custompipeline)
+         options customplayer custompipeline dlnaplayer dlnapipeline)
 
 add_library(pf SHARED ${OBJS})
 if(OPTION_MMUTILS)

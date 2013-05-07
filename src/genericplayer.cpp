@@ -19,9 +19,9 @@ using namespace mediapipeline;
 GenericPlayer::GenericPlayer ()
 {
   LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPlayer");
-  Pipeline::bsp_t pipeline = getPipeline ();
-  pipeline.reset (new GenericPipeline ());
-  setPipeline (pipeline);       // save to abstractplayer.
+ // Pipeline::bsp_t pipeline = getPipeline ();
+  //pipeline.reset (new GenericPipeline ());
+  //setPipeline (pipeline);       // save to abstractplayer.
 }
 
 GenericPlayer::~GenericPlayer ()
@@ -52,8 +52,10 @@ gboolean GenericPlayer::loadSpi (const std::string optionString)
 
   Pipeline::bsp_t pipeline = getPipeline ();
   gboolean result = false;
-//      pipeline.reset(new GenericPipeline()); //moved to create time..
-//      setPipeline(pipeline);
+  pipeline.reset(new GenericPipeline()); //moved to create time..
+  setPipeline(pipeline);
+  pipeline = getPipeline ();
+  
   result = pipeline->load (optionString);
   if(result == true)
       result = pipeline->informationMonitorStart(200);

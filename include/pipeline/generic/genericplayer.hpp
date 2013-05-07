@@ -19,11 +19,10 @@ class GenericPlayer:public AbstractPlayer
   friend class PlayerFactory;
 
 private:
-  GenericPlayer ();
-
+  
 public:
+  GenericPlayer ();
   ~GenericPlayer ();
-
   gboolean playSpi (int rate);
   //void loadSpi();
   gboolean loadSpi (const std::string optionString);
