@@ -31,7 +31,12 @@
   Local Constant Definitions
 *******************************************************************************/
 #define MEDIA_QUEUE_MAX_SIZE (2*1024*1024)
+#define MEDIA_ES_VIDEO_MAX (30*1024*1024)
+#define MEDIA_ES_AUDIO_MAX (2*1024*1024)
 
+#define ES_AUDIO_FOURCC     0xFF    // AAC
+#define ES_AUDIO_MPEG_VER   4
+#define ES_AUDIO_SAMPLERATE   44100
 /******************************************************************************
   Function Definitions
 ******************************************************************************/
@@ -151,16 +156,13 @@ CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
   m_uNumOfSrc = 1;
   memcpy (&m_stContentInfo, pstContentInfo, sizeof (MEDIA_CUSTOM_CONTENT_INFO_T));
 
-#if 1                           /* changbok.chea - webos refactory - temp [ need to organize NC4.0 pipeline sturcture ] */
   if (m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_ES)
-    m_uNumOfSrc = _CheckContentType ();
+    m_uNumOfSrc = checkContentType ();
 
   LMF_DBG_PRINT ("gPipelineInfo[ch].numOfSrc == %d\n", m_uNumOfSrc);
-  m_audCount = 0;
-#endif
 
   /* create src element based on each src type */
-  if (_addSrcElement (startOffset, pSrcPath) != MEDIA_OK) {
+  if (addSrcElement (startOffset, pSrcPath) != MEDIA_OK) {
     LMF_ERR_PRINT ("[%s:%d] fail to create the src element (%s)\n", __FUNCTION__, __LINE__, pSrcPath);
     return MEDIA_ERROR;
   }
@@ -170,11 +172,7 @@ CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
   switch (m_eSrcType) {
   case MEDIA_CUSTOM_SRC_TYPE_ES:
   {
-#if 0                           /* jhtark - webos refactory - temp [ need to add ] */
-    retVal =
-      LMF_STATIC_ES_AddSinkElement (&gPipelineInfo[ch], srcType,
-                                    contentInfo, pWritePath);
-#endif
+    retVal = addSinkElement_ES ();
   }
   break;
   case MEDIA_CUSTOM_SRC_TYPE_DOWNLOAD:
@@ -189,7 +187,7 @@ CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
   default:
   {
     //push case must find demuxer element
-    retVal = _addDemuxElement ();
+    retVal = addDemuxElement ();
   }
   break;
   }
@@ -233,7 +231,7 @@ CustomPipeline::load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
 }
 
 guint8
-CustomPipeline::_CheckContentType (void)
+CustomPipeline::checkContentType (void)
 {
   guint8 numOfSrc = 0;
 
@@ -258,7 +256,7 @@ CustomPipeline::_CheckContentType (void)
 }
 
 gint
-CustomPipeline::_transSampleRate(MEDIA_AUDIO_SAMPLERATE_T sampleRate)
+CustomPipeline::transSampleRate(MEDIA_AUDIO_SAMPLERATE_T sampleRate)
 {
   gint sample = 0;
 
@@ -296,16 +294,213 @@ CustomPipeline::_transSampleRate(MEDIA_AUDIO_SAMPLERATE_T sampleRate)
   return sample;
 }
 
+gint
+CustomPipeline::getAACFreqIdx(gint frequency)
+{
+  gint freqIdx = 0;
+
+  switch(frequency)
+  {
+  case 48000:
+    freqIdx = 0x03;
+    break;
+  case 44100:
+    freqIdx = 0x04;
+    break;
+  case 32000:
+    freqIdx = 0x05;
+    break;
+  case 24000:
+    freqIdx = 0x06;
+    break;
+  case 16000:
+    freqIdx = 0x08;
+    break;
+  case 12000:
+    freqIdx = 0x09;
+    break;
+  case 8000:
+    freqIdx = 0x0b;
+    break;
+  default:
+    break;
+  }
+
+  LMF_DBG_PRINT("[%s:%d] Get AAC Freq Idx [%d -> %d]\n", __FUNCTION__, __LINE__, frequency, freqIdx);
+  return freqIdx;
+}
 
 MEDIA_STATUS_T
-CustomPipeline::_addSrcElement_Push (void)
+CustomPipeline::addSrcElement_ES(void)
+{
+  MEDIA_SRC_T *pSrcInfo;
+  guint8 scrIdx = 0;
+  char srcName[10];
+  guint esBufferMax[IDX_MAX] = {MEDIA_ES_VIDEO_MAX, MEDIA_ES_AUDIO_MAX};
+  guint bufferMaxLevel =0, bufferMinPercent =0, preBufferLevel =0;
+  MEDIA_STATUS_T retVal = MEDIA_OK;
+  guint8    numOfSrc = 0;
+
+  GstAppSrcCallbacks callbacks = {&callbackStartFeed,&callbackStopFeed,&callbackSeekData};
+
+  numOfSrc = m_uNumOfSrc;
+
+  LMF_DBG_PRINT("[%s:%d][PUSH ES] numOfSrc = %d\n",__FUNCTION__, __LINE__, numOfSrc);
+
+  for(scrIdx=0 ; ((scrIdx<numOfSrc) && (scrIdx<IDX_MAX)) ; scrIdx++)
+  {
+    m_eNeedFeedData[scrIdx] = CUSTOM_BUFFER_FEED;
+    pSrcInfo = &(m_stSrcInfo[scrIdx]);
+
+    pSrcInfo->srcIdx = static_cast<MEDIA_SRC_ELEM_IDX_T>(scrIdx);
+
+    memset(srcName, 0x00, sizeof(srcName));
+    sprintf(srcName, "app-es%d", scrIdx);
+
+    pSrcInfo->pSrcElement = gst_element_factory_make ("appsrc", srcName);
+    if (!pSrcInfo->pSrcElement)
+    {
+      LMF_ERR_PRINT("[%s:%d] appsrc(%d) element can not be created!!!\n", __FUNCTION__, __LINE__, scrIdx);
+      return MEDIA_ERROR;
+    }
+
+    {
+      gchar * pReadName = NULL;
+      g_object_get(G_OBJECT(pSrcInfo->pSrcElement), "name", &pReadName, NULL);
+      LMF_DBG_PRINT("============= [scrIdx:%d] srcName = %s ==============\n", scrIdx, pReadName);
+      g_free(pReadName);
+    }
+    if ((scrIdx == IDX_VIDEO) && (m_stContentInfo.vcodec!= MEDIA_VIDEO_NONE))
+    {
+      bufferMaxLevel    = m_stContentInfo.videoDataInfo.bufferMaxLevel;
+
+      if((bufferMaxLevel > esBufferMax[scrIdx]) || (bufferMaxLevel == 0))
+        bufferMaxLevel = esBufferMax[scrIdx];
+
+      if (bufferMaxLevel != 0)
+        bufferMinPercent  = (guint)(((gfloat)m_stContentInfo.videoDataInfo.bufferMinLevel/(gfloat)bufferMaxLevel)*100);
+
+      preBufferLevel    = m_stContentInfo.videoDataInfo.prebufferLevel;
+
+      pSrcInfo->bufferMinByte = m_stContentInfo.videoDataInfo.bufferMinLevel;
+
+      LMF_DBG_PRINT("[scrIdx:%d][Video][BUFFER LEVEL][REQ] MAX : %u (MIN : %u bytes), PRE:%u\n", scrIdx,
+                    m_stContentInfo.videoDataInfo.bufferMaxLevel, m_stContentInfo.videoDataInfo.bufferMinLevel, m_stContentInfo.videoDataInfo.prebufferLevel);
+    }
+    else
+    {
+      bufferMaxLevel    = m_stContentInfo.audioDataInfo.bufferMaxLevel;
+
+      if((bufferMaxLevel > esBufferMax[scrIdx]) || (bufferMaxLevel == 0))
+        bufferMaxLevel = esBufferMax[scrIdx];
+
+      if (bufferMaxLevel != 0)
+        bufferMinPercent  = (guint)(((gfloat)m_stContentInfo.audioDataInfo.bufferMinLevel/(gfloat)bufferMaxLevel)*100);
+
+      preBufferLevel    = m_stContentInfo.audioDataInfo.prebufferLevel;
+
+      pSrcInfo->bufferMinByte = m_stContentInfo.audioDataInfo.bufferMinLevel;
+
+      LMF_DBG_PRINT("[scrIdx:%d][Audio][BUFFER LEVEL][REQ] MAX : %u (MIN : %u bytes), PRE:%u\n", scrIdx,
+                    m_stContentInfo.audioDataInfo.bufferMaxLevel, m_stContentInfo.audioDataInfo.bufferMinLevel, m_stContentInfo.audioDataInfo.prebufferLevel);
+    }
+
+    if(preBufferLevel > (bufferMaxLevel/2))
+      preBufferLevel= (bufferMaxLevel/2);
+
+    pSrcInfo->bufferMaxByte = bufferMaxLevel;
+    pSrcInfo->prebufferByte = preBufferLevel;
+
+
+    LMF_DBG_PRINT("[scrIdx:%d][BUFFER LEVEL][ADJ] MAX : %u (MIN : %u bytes / %u% ), PRE:%u\n", scrIdx, bufferMaxLevel, pSrcInfo->bufferMinByte, bufferMinPercent, preBufferLevel);
+
+    // Preroll : set play start timing, after checking Video buffering state .
+    // TODO : Buffer : seperate Audio & Video case.
+
+    if((scrIdx == IDX_VIDEO) && (!m_stContentInfo.pauseAtDecodeTime))
+    {
+      if(preBufferLevel != 0)
+      {
+        m_stPrerollState.bUsePreroll = TRUE;
+        m_stPrerollState.bIsPreroll = TRUE;
+        m_stPrerollState.bufferedSize = 0;
+        m_stPrerollState.maxBufferSize= preBufferLevel;
+        LMF_DBG_PRINT("[scrIdx:%d][PRE ROLL][SET] setting ok (PRE_SET : %u)\n", scrIdx, m_stPrerollState.maxBufferSize);
+      }
+      else if((m_stContentInfo.vcodec != MEDIA_VIDEO_NONE) ||
+              ((m_stContentInfo.acodec != MEDIA_AUDIO_PCM) && (m_stContentInfo.acodec != MEDIA_AUDIO_AAC)))
+      {
+        m_stPrerollState.bUsePreroll  = TRUE;
+        m_stPrerollState.bIsPreroll = TRUE;
+        m_stPrerollState.bufferedSize = 0;
+        m_stPrerollState.maxBufferSize= 10;
+
+        LMF_DBG_PRINT("[scrIdx:%d][PRE ROLL][SET] PreRoll Zero byte -> default 10 byte(for set start_time)  \n", scrIdx);
+      }
+      else
+      {
+        m_stPrerollState.bUsePreroll  = FALSE;
+        m_stPrerollState.bIsPreroll = FALSE;
+        m_stPrerollState.bufferedSize = 0;
+        m_stPrerollState.maxBufferSize= 0;
+        LMF_DBG_PRINT("[scrIdx:%d][PRE ROLL][SET] NO-PreRoll Mode\n", scrIdx);
+      }
+    }
+
+    // TODO : Audio, Video max level ºÐ¸®.
+    g_object_set(G_OBJECT(pSrcInfo->pSrcElement),
+                 "format",   GST_FORMAT_TIME,
+                 //"block",    TRUE,           // block push-buffer when max-bytes are queued, Do not add(grace)
+                 "max-bytes",  (guint64)(bufferMaxLevel),
+                 "min-percent",  50,             // emit need-data when queued bytes drops below this percent of max-bytes
+                 NULL );
+
+    gst_util_set_object_arg(G_OBJECT(pSrcInfo->pSrcElement), "stream-type", "seekable");
+
+    /* Todo : how to enable need-data callback at only HTML5 youtube */
+    //if(pPipeline->pCtxHandler->contentsInfo_bNeedData == TRUE)
+    //g_signal_connect(pSrcInfo->pSrcElement, "need-data", G_CALLBACK(LMF_STATIC_COMM_StartFeed), pSrcInfo);
+
+    //g_signal_connect(pSrcInfo->pSrcElement, "enough-data", G_CALLBACK(LMF_STATIC_COMM_StopFeed), pSrcInfo);
+    //g_signal_connect(pSrcInfo->pSrcElement, "seek-data", G_CALLBACK(LMF_STATIC_COMM_SeekData), pSrcInfo);
+
+    GstAppSrc *pstAppSrc = reinterpret_cast<GstAppSrc*>(static_cast<GstElement*>(pSrcInfo->pSrcElement));
+
+    //  TODO : the reason that the function is not included.  gst_app_src_set_callbacks(pstAppSrc/*pSrcInfo->pSrcElement*/,&callbacks,this,NULL );
+
+#if  0    //(PLATFORM_TYPE == MTK_PLATFORM)   //still not use MTK platform
+    if((pPipeline->contentType == CONTENT_TYPE_AUDIO) ||
+        ((pPipeline->contentType == CONTENT_TYPE_MULTI) && (idx == IDX_AUDIO)) ||
+        ((gbEnableVideo == FALSE) && (idx == IDX_VIDEO)))    // debug path
+    {
+      LMF_CONTENT_INFO_T tmp_ContentInfo;
+
+      memcpy(&tmp_ContentInfo,pContentInfo,sizeof(LMF_CONTENT_INFO_T));
+
+      LMF_DBG_PRINT("[%s:%d] _LMF_STATIC_ES_SetAdecSinkInfo call!\n", __FUNCTION__, __LINE__);
+      if(_LMF_STATIC_ES_SetAdecSinkInfo(tmp_ContentInfo, &pSrcInfo->pSrcElement) != LMF_OK)
+      {
+        LMF_ERR_PRINT("[%s:%d] _LMF_STATIC_ES_SetAdecSinkInfo Fail!\n", __FUNCTION__, __LINE__);
+        return LMF_NOT_OK;
+      }
+    }
+#endif
+    gst_bin_add(GST_BIN(m_pstPipeline), pSrcInfo->pSrcElement);
+  }
+
+  return retVal;
+}
+
+
+MEDIA_STATUS_T
+CustomPipeline::addSrcElement_Push (void)
 {
   MEDIA_SRC_T *pSrcInfo;
   MEDIA_STATUS_T retVal = MEDIA_OK;
 
   guint bufferMaxLevel = 0, bufferMinPercent = 0, preBufferLevel = 0;
 
-  GstAppSrcCallbacks callbacks = {&_callbackStartFeed,&_callbackStopFeed,&_callbackSeekData};
+  GstAppSrcCallbacks callbacks = {&callbackStartFeed,&callbackStopFeed,&callbackSeekData};
 
   LMF_DBG_PRINT ("[%s:%d][PUSH]\n", __FUNCTION__, __LINE__);
 
@@ -402,7 +597,7 @@ CustomPipeline::_addSrcElement_Push (void)
 }
 
 MEDIA_STATUS_T
-CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
+CustomPipeline::addSrcElement (guint64 startOffset, const gchar * pSrcPath)
 {
   MEDIA_SRC_T *pSrcInfo;
   MEDIA_STATUS_T retVal = MEDIA_OK;
@@ -489,10 +684,10 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
   case MEDIA_CUSTOM_SRC_TYPE_ES:
   {
     /* Add Elements on ES case */
-//        retVal = LMF_STATIC_ES_AddElement(&gPipelineInfo[ch],pcontentInfo);
+    retVal = addSrcElement_ES();
     if (retVal != MEDIA_OK)
     {
-      LMF_ERR_PRINT ("[%s:%d] _LMF_STATIC_AddElementOnESCase return Fail!\n",
+      LMF_ERR_PRINT ("[%s:%d] _addElementOnESCase return Fail!\n",
                      __FUNCTION__, __LINE__);
       return MEDIA_ERROR;
     }
@@ -502,10 +697,10 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
   case MEDIA_CUSTOM_SRC_TYPE_TTS:    // no prebuffer
   {
     /* Add Elements on Push and TTS case */
-    retVal = _addSrcElement_Push ();
+    retVal = addSrcElement_Push ();
     if (retVal != MEDIA_OK)
     {
-      LMF_ERR_PRINT ("[%s:%d] LMF_STATIC_PKG_AddElement return Fail!\n", __FUNCTION__, __LINE__);
+      LMF_ERR_PRINT ("[%s:%d] addElement_Push return Fail!\n", __FUNCTION__, __LINE__);
       return MEDIA_ERROR;
     }
   }
@@ -522,8 +717,30 @@ CustomPipeline::_addSrcElement (guint64 startOffset, const gchar * pSrcPath)
 
 }
 
+MEDIA_STATUS_T
+CustomPipeline::addSinkElement_ES (void)
+{
+  if(m_stContentInfo.vcodec != MEDIA_VIDEO_NONE)
+  {
+    LMF_DBG_PRINT("%s.%d: Linking src element to video decoder (codec: 0x%X)\n", __FUNCTION__, __LINE__, m_stContentInfo.vcodec);
+
+    if(setVideoPath_ES() == MEDIA_ERROR)
+      return MEDIA_ERROR;
+  }
+
+  if(m_stContentInfo.acodec != MEDIA_AUDIO_NONE)
+  {
+    LMF_DBG_PRINT("[%s:%d] Linking audio pad to audio decoder (codec: 0x%X)\n", __FUNCTION__, __LINE__, m_stContentInfo.acodec);
+
+    if(setAudioPath_ES() == MEDIA_ERROR)
+      return MEDIA_ERROR;
+  }
+
+  return MEDIA_OK;
+}
+
 void
-CustomPipeline::_callbackStopFeed (GstAppSrc * element, gpointer data /*MEDIA_SRC_T * app*/)
+CustomPipeline::callbackStopFeed (GstAppSrc * element, gpointer data /*MEDIA_SRC_T * app*/)
 {
 
 #if 0
@@ -579,7 +796,7 @@ CustomPipeline::_callbackStopFeed (GstAppSrc * element, gpointer data /*MEDIA_SR
 }
 
 gboolean
-CustomPipeline::_callbackSeekData (GstAppSrc * element, guint64 offset, gpointer data /*   MEDIA_SRC_T * app */)
+CustomPipeline::callbackSeekData (GstAppSrc * element, guint64 offset, gpointer data /*   MEDIA_SRC_T * app */)
 {
 //  LMF_DBG_PRINT ("[SEEK DATA]__________ offset:%lld / IDX_%s \n", offset,   (app->srcIdx == IDX_VIDEO) ? "Video" : "Audio");
   return true;
@@ -587,7 +804,7 @@ CustomPipeline::_callbackSeekData (GstAppSrc * element, guint64 offset, gpointer
 
 
 void
-CustomPipeline::_callbackStartFeed (GstAppSrc * element, guint32 size,  gpointer data /*MEDIA_SRC_T * app*/)
+CustomPipeline::callbackStartFeed (GstAppSrc * element, guint32 size,  gpointer data /*MEDIA_SRC_T * app*/)
 {
 #if 0                           /* jhtark - webos refactory - temp [ ned to organize below statements  ] */
   MEDIA_CHANNEL_T ch = app->ch;
@@ -618,7 +835,7 @@ CustomPipeline::_callbackStartFeed (GstAppSrc * element, guint32 size,  gpointer
 #endif
 }
 
-void CustomPipeline::_underrunSignalCb(GstElement *element, gpointer data)
+void CustomPipeline::underrunSignalCb(GstElement *element, gpointer data)
 {
   CustomPipeline *pCustomPipe = (CustomPipeline*)data;
 
@@ -662,7 +879,7 @@ void CustomPipeline::_underrunSignalCb(GstElement *element, gpointer data)
 
 
 MEDIA_STATUS_T
-CustomPipeline::_initValue (void)
+CustomPipeline::initValue (void)
 {
 
   GError *err;
@@ -703,8 +920,550 @@ CustomPipeline::_initValue (void)
   return MEDIA_OK;
 }
 
+MEDIA_STATUS_T
+CustomPipeline::setVideoPath_ES(void)
+{
+  // make video sink element
+  m_pstVideoDecoderElement = gst_element_factory_make("vdecsink", "video-sink");
+  if (!m_pstVideoDecoderElement)
+  {
+    LMF_DBG_PRINT("%s.%d: VDEC sink could not be created!!!\n", __FUNCTION__, __LINE__);
+    return MEDIA_ERROR;
+  }
+
+  g_signal_connect(m_pstVideoDecoderElement, "video-underrun", G_CALLBACK(underrunSignalCb), this);
+  gst_bin_add(GST_BIN(m_pstPipeline), m_pstVideoDecoderElement);
+
+  if(setVdecSinkInfo_ES() != MEDIA_OK)
+  {
+    LMF_ERR_PRINT("[%s:%d] _setVideoSinkInfo_ES Fail\n", __FUNCTION__, __LINE__);
+    return MEDIA_ERROR;
+  }
+
+  // need video queue.
+  m_pstVideoQueueElement = gst_element_factory_make("queue", "video-queue");
+  if (!m_pstVideoQueueElement)
+  {
+    LMF_DBG_PRINT("%s.%d: Video queue could not be created!!!\n", __FUNCTION__, __LINE__);
+    return MEDIA_ERROR;
+  }
+
+  if(m_stContentInfo.videoDataInfo.userQBufferLevel> 0)
+  {
+    g_object_set(G_OBJECT(m_pstVideoQueueElement),
+                 "max-size-bytes", (guint)m_stContentInfo.videoDataInfo.userQBufferLevel,
+                 "max-size-time",  (guint64)0,
+                 "max-size-buffers", (guint)0,
+                 NULL);
+  }
+  else
+  {
+    g_object_set(G_OBJECT(m_pstVideoQueueElement),
+                 "max-size-bytes", (guint)MEDIA_QUEUE_MAX_SIZE,
+                 "max-size-time",  (guint64)0,
+                 "max-size-buffers", (guint)0,
+                 NULL);
+  }
+
+  gst_bin_add(GST_BIN(m_pstPipeline), m_pstVideoQueueElement);
+
+  // video src -> video Q
+  gst_element_link(m_stSrcInfo[IDX_VIDEO].pSrcElement, m_pstVideoQueueElement);
+  // video Q -> video decoder
+  gst_element_link(m_pstVideoQueueElement, m_pstVideoDecoderElement);
+
+  return MEDIA_OK;
+}
+
+MEDIA_STATUS_T
+CustomPipeline::setVdecSinkInfo_ES(void)
+{
+  GstPad* pad = NULL;
+  GstCaps* caps = NULL;
+  MEDIA_STATUS_T retVal = MEDIA_OK;
+
+  LMF_DBG_PRINT("[%s:%d] vcodec 0x%X\n", __FUNCTION__, __LINE__, m_stContentInfo.videoDataInfo.vcodec);
+
+#if 0 // after vdecsink modify property, special case need "low-delay" 
+  g_object_set(G_OBJECT(*ppVideoDecoderElement), "low-delay", 1, NULL);
+#endif
+
+  pad = gst_element_get_static_pad(m_pstVideoDecoderElement, "sink");
+
+  if(m_stContentInfo.bSecurityVideoPath == TRUE)
+  {
+    LMF_DBG_PRINT("[%s:%d] SVP Streaming TRUE\n", __FUNCTION__, __LINE__);
+
+    // set SVP path
+    if ((g_object_class_find_property (G_OBJECT_GET_CLASS (m_pstVideoDecoderElement), "is-svp")))
+      g_object_set(G_OBJECT(m_pstVideoDecoderElement), "is-svp", TRUE, NULL);
+    else
+      LMF_DBG_PRINT("[%s:%d] There is no [is-svp] property\n", __FUNCTION__, __LINE__);
+  }
+  else
+  {
+    LMF_DBG_PRINT("[%s:%d] This is not SVP Streaming case\n", __FUNCTION__, __LINE__);
+  }
+
+  switch(m_stContentInfo.videoDataInfo.vcodec)
+  {
+  case MEDIA_VIDEO_VC1:
+  {
+    gint wmvVer = 0;  // 1 ~ 3
+    guint32 fourcc = 0; // WMV1, WMV2, WMV3, WMVA, AVC1, WVC1
+    gboolean isSmoothStreamMode = FALSE;
+
+    wmvVer = m_stContentInfo.videoDataInfo.video_data.wmvInfo.wmvVer;
+    fourcc = m_stContentInfo.videoDataInfo.video_data.wmvInfo.wmvFourcc;
+    isSmoothStreamMode = m_stContentInfo.videoDataInfo.isSSPK;
+
+    LMF_DBG_PRINT ("[ES:VC1 Info] ver: %d, codec %"GST_FOURCC_FORMAT" (0x%08x)\n",
+                   wmvVer, GST_FOURCC_ARGS(fourcc), fourcc);
+
+    caps = gst_caps_new_simple( "video/x-wmv",
+                                "container", G_TYPE_STRING, "ES",
+                                NULL );
+    if (caps == NULL)
+    {
+      LMF_ERR_PRINT("[%s:%d] caps is NULL!!!\n", __FUNCTION__, __LINE__);
+      retVal = MEDIA_ERROR;
+      goto exit_vdec_info_setting;
+    }
+
+    if(fourcc != 0)
+    {
+      //gst_caps_set_simple(caps, "format", GST_TYPE_FOURCC, fourcc, NULL); //changbok Todo:check GST_TYPE error
+    }
+
+    if(wmvVer != 0)
+    {
+      gst_caps_set_simple(caps, "wmvversion", G_TYPE_INT, wmvVer, NULL);
+    }
+
+    if(isSmoothStreamMode == TRUE)
+    {
+      LMF_DBG_PRINT ("[ES:H264] enabled-sspk -> set to TRUE\n");
+      gst_caps_set_simple(caps, "enabled-sspk", G_TYPE_BOOLEAN, TRUE, NULL);
+    }
+
+    break;
+  }
+  case MEDIA_VIDEO_H264:
+  {
+    gint data_size = 0;
+    gboolean isSmoothStreamMode = FALSE;
+    GstBuffer *codec_buf = NULL;
+
+    data_size = (gint)m_stContentInfo.videoDataInfo.video_data.h264Info.codec_data_size;
+    isSmoothStreamMode = m_stContentInfo.videoDataInfo.isSSPK;
+    /* changbok Todo:check GST_TYPE error
+        caps = gst_caps_new_simple( "video/x-h264",
+                                    "format", GST_TYPE_FOURCC, GST_MAKE_FOURCC('a','v','c','1'),
+                                    "container", G_TYPE_STRING, "ES", //"ISO MP4/M4A",
+                                    NULL );
+    */
+    if (caps == NULL)
+    {
+      LMF_ERR_PRINT("[%s:%d] caps is NULL!!!\n", __FUNCTION__, __LINE__);
+      retVal = MEDIA_ERROR;
+      goto exit_vdec_info_setting;
+    }
+
+    // Marlin : Accessunit(0, 0, 0, 1, 9, 0xe0) + (0, 0, 0, 1 )+ (0x7) + SPS data + (0, 0, 0, 1) + (0x8) + PPS data --> 0x7/0x8: 5bit
+    if((data_size != 0) && (m_stContentInfo.videoDataInfo.video_data.h264Info.codec_data != NULL))
+    {
+      LMF_DBG_PRINT ("[ES:H264] Set Codec_data (size:%d)\n", data_size);
+
+      codec_buf = gst_buffer_new_and_alloc(data_size);
+      if(codec_buf==NULL)
+      {
+        LMF_ERR_PRINT("%s] gst buffer new error!!!!! \n",__FUNCTION__);
+        return MEDIA_ERROR;
+      }
+//      memcpy (GST_BUFFER_DATA(codec_buf), (m_stContentInfo.videoDataInfo.video_data.h264Info.codec_data), data_size);  changbok Todo:check GST_BUFFER error
+
+      gst_caps_set_simple(caps, "codec_data", GST_TYPE_BUFFER, codec_buf, NULL);
+      gst_buffer_unref(codec_buf);
+    }
+
+    if(isSmoothStreamMode == TRUE)
+    {
+      LMF_DBG_PRINT ("[ES:H264] enabled-sspk -> set to TRUE\n");
+      gst_caps_set_simple(caps, "enabled-sspk", G_TYPE_BOOLEAN, TRUE, NULL);
+    }
+
+    break;
+  }
+  case MEDIA_VIDEO_MVC:
+  {
+    LMF_DBG_PRINT("[ES:MVC] mime: video/x-h264, format: mvc1 \n");
+    /*   changbok Todo:check GST_TYPE error
+        caps = gst_caps_new_simple( "video/x-h264",
+                                    "format", GST_TYPE_FOURCC, GST_MAKE_FOURCC('m','v','c','1'),
+                                    NULL );
+    */
+    if (caps == NULL)
+    {
+      LMF_ERR_PRINT("[%s:%d] caps is NULL!!!\n", __FUNCTION__, __LINE__);
+      retVal = MEDIA_ERROR;
+      goto exit_vdec_info_setting;
+    }
+    break;
+  }
+  default:
+  {
+    break;
+  }
+  }
+
+  if (caps != NULL)
+  {
+    LMF_DBG_PRINT("[%s:%d] Set VDEC caps manually -- \n", __FUNCTION__, __LINE__);
+
+    gst_pad_use_fixed_caps(pad);
+    gst_pad_set_caps(pad, caps);
+    gst_caps_unref (caps);
+  }
+
+exit_vdec_info_setting:
+  gst_object_unref(pad);
+  return retVal;
+}
+MEDIA_STATUS_T
+CustomPipeline::setAudioPath_ES(void)
+{
+  // make audio sink element
+  m_pstAudioDecoderElement = gst_element_factory_make("adecsink", "audio-sink");
+  if (!m_pstAudioDecoderElement)
+  {
+    LMF_DBG_PRINT("%s.%d: ADEC sink can not be created!!!\n", __FUNCTION__, __LINE__);
+    return MEDIA_ERROR;
+  }
+
+  g_signal_connect(m_pstAudioDecoderElement, "audio-underrun", G_CALLBACK(underrunSignalCb), this);
+  gst_bin_add(GST_BIN(m_pstPipeline), m_pstAudioDecoderElement);
+
+#if  1 //(PLATFORM_TYPE == LG_PLATFORM)   //still not use MTK platform
+  if(setAdecSinkInfo_ES() != MEDIA_OK)
+  {
+    LMF_ERR_PRINT("[%s:%d] setAdecSinkInfo_ES Fail!\n", __FUNCTION__, __LINE__);
+    return MEDIA_ERROR;
+  }
+#else
+  if ((pInfo->pAudioDecoderElement != NULL) &&
+      (g_object_class_find_property (G_OBJECT_GET_CLASS (pInfo->pAudioDecoderElement), "app-type")))
+  {
+    MF_DBG_PRINT("[adecsink]set app-type to staticES\n");
+    g_object_set(G_OBJECT(pInfo->pAudioDecoderElement), "app-type", "staticES", NULL);   // set to support ES stream multi audio
+  }
+#endif
+
+  // need audio queue.
+  m_pstAudioQueueElement = gst_element_factory_make("queue", "audio-queue");
+  if (!m_pstAudioQueueElement)
+  {
+    LMF_DBG_PRINT("%s.%d: Audio queue could not be created!!!\n", __FUNCTION__, __LINE__);
+    return MEDIA_ERROR;
+  }
+
+  if(m_stContentInfo.audioDataInfo.userQBufferLevel > 0)
+  {
+    g_object_set(G_OBJECT(m_pstAudioQueueElement),
+                 "max-size-bytes", (guint)m_stContentInfo.audioDataInfo.userQBufferLevel,
+                 "max-size-time",  (guint64)0,
+                 "max-size-buffers", (guint)0,
+                 NULL);
+  }
+  else
+  {
+    g_object_set(G_OBJECT(m_pstAudioQueueElement),
+                 "max-size-bytes", (guint)MEDIA_QUEUE_MAX_SIZE,
+                 "max-size-time",  (guint64)0,
+                 "max-size-buffers", (guint)0,
+                 NULL);
+  }
+
+  gst_bin_add(GST_BIN(m_pstPipeline), m_pstAudioQueueElement);
+
+  // audio src -> audio Q
+  /*  if(gbEnableVideo == TRUE)
+    {
+      if(pInfo->numOfSrc == 1)
+        gst_element_link(pInfo->srcInfo[IDX_VIDEO].pSrcElement, pInfo->pAudioQueueElement);
+      else
+        gst_element_link(pInfo->srcInfo[IDX_AUDIO].pSrcElement, pInfo->pAudioQueueElement);
+    }
+    else
+    {
+      gst_element_link(pInfo->srcInfo[IDX_VIDEO].pSrcElement, pInfo->pAudioQueueElement);
+    } */ // need to change ES src Index algorism
+  gst_element_link(m_stSrcInfo[IDX_AUDIO].pSrcElement, m_pstAudioQueueElement);
+  // audio Q -> audio decoder
+  gst_element_link(m_pstAudioQueueElement, m_pstAudioDecoderElement);
+
+  return MEDIA_OK;
+}
+
+MEDIA_STATUS_T
+CustomPipeline::setAdecSinkInfo_ES(void)
+{
+  GstPad* pad = NULL;
+  GstCaps* caps = NULL;
+  MEDIA_STATUS_T retVal = MEDIA_OK;
+
+  LMF_DBG_PRINT("[%s:%d] acodec 0x%X\n", __FUNCTION__, __LINE__, m_stContentInfo.audioDataInfo.acodec);
+
+  pad = gst_element_get_static_pad(m_pstAudioDecoderElement, "sink");
+
+  switch(m_stContentInfo.audioDataInfo.acodec)
+  {
+  case MEDIA_AUDIO_AAC:
+  {
+    GstBuffer *codec_buf;
+    guint8 codec_data[2] = {0,};
+    gint channels =0, frequency =0, profile =0;
+    MEDIA_AUDIO_AAC_INFO_T *pAudioInfo;
+
+    pAudioInfo = &(m_stContentInfo.audioDataInfo.audio_data.aacInfo);
+
+    // youtube leanback case
+    /*g_object_set(G_OBJECT(*ppAudioDecoderElement), "channel", LMF_ADEC_DECODE_MAIN,     //default main channel
+                            "codec-type", LMF_ADEC_CODEC_TYPE_AAC,  //caps already has information
+                            "loop-mode", FALSE,           //default FALSE
+                            NULL);*/
+    /*   changbok Todo:check GST_TYPE error
+        caps = gst_caps_new_simple("audio/mpeg",
+                                   "mpegversion",  G_TYPE_INT,     ES_AUDIO_MPEG_VER,
+                                   "format",   GST_TYPE_FOURCC,  ES_AUDIO_FOURCC,    // format(fourCC)
+                                   NULL);
+    */
+    if (caps == NULL)
+    {
+      LMF_ERR_PRINT("[%s:%d] caps is NULL!!!\n", __FUNCTION__, __LINE__);
+      retVal = MEDIA_ERROR;
+      goto exit_adec_info_setting;
+    }
+
+    if((pAudioInfo->codec_data == NULL) || (pAudioInfo->codec_data_size <= 0))
+    {
+      gint tempData = 0;
+      gint freqIdx = 0;
+
+      channels = pAudioInfo->channels;
+      frequency = transSampleRate(pAudioInfo->frequency);
+      profile = pAudioInfo->profile;
+
+      LMF_DBG_PRINT("[%s:%d] AAC channels = %d, frequency = %d, profile = %d\n",
+                    __FUNCTION__, __LINE__, channels, frequency, profile);
+
+      if ((profile != 0) && (frequency != 0))
+      {
+        if (profile >= 5)
+        {
+          profile = 2;
+          if(frequency > 0)
+            frequency /= 2;
+        }
+
+        freqIdx = getAACFreqIdx(frequency);
+        tempData |= (((profile & 0x1F)<<11) | ((freqIdx & 0x0F)<< 7));
+
+        codec_data[0] = ((tempData&0xFF00)>>8);
+        codec_data[1] = (tempData&0x00FF);
+
+        LMF_DBG_PRINT("[%s:%d] AAC Codec data = 0x%X, 0x%X\n", __FUNCTION__, __LINE__, codec_data[0], codec_data[1]);
+
+        if((codec_data[0] != 0x00) || (codec_data[1] != 0x00))
+        {
+          gint data_size = 0;
+
+          data_size = sizeof(codec_data);
+
+          codec_buf = gst_buffer_new_and_alloc(data_size);
+          if(codec_buf==NULL)
+          {
+            LMF_ERR_PRINT("%s] gst buffer new error!!!!! \n",__FUNCTION__);
+            return MEDIA_ERROR;
+          }
+//          memcpy (GST_BUFFER_DATA(codec_buf), codec_data, data_size);  changbok Todo:check GST_BUFFER error
+
+          gst_caps_set_simple(caps, "codec_data", GST_TYPE_BUFFER, codec_buf, NULL);
+          gst_buffer_unref(codec_buf);
+        }
+        LMF_DBG_PRINT("[%s:%d] Send Codec data ok\n", __FUNCTION__, __LINE__);
+
+      }
+      else
+      {
+        LMF_DBG_PRINT("[%s:%d] no need to send the aac codec data\n", __FUNCTION__, __LINE__);
+      }
+    }
+
+    if(channels != 0)
+    {
+      gst_caps_set_simple(caps, "channels", G_TYPE_INT, channels, NULL);
+    }
+
+    break;
+  }
+  case MEDIA_AUDIO_AC3PLUS:
+  {
+    caps = gst_caps_new_simple("audio/x-eac3", NULL);
+    if (caps == NULL)
+    {
+      LMF_ERR_PRINT("[%s:%d] caps is NULL!!!\n", __FUNCTION__, __LINE__);
+      retVal = MEDIA_ERROR;
+      goto exit_adec_info_setting;
+    }
+    break;
+  }
+  case MEDIA_AUDIO_PCM:
+  {
+    gint sample = 0;
+    LMF_DBG_PRINT("[%s:%d] PCM info: %d %d %d\n",
+                  __FUNCTION__, __LINE__,
+                  m_stContentInfo.audioDataInfo.audio_data.pcmInfo.sampleRate,
+                  m_stContentInfo.audioDataInfo.audio_data.pcmInfo.channelMode,
+                  m_stContentInfo.audioDataInfo.audio_data.pcmInfo.bitsPerSample);
+
+    if (m_stContentInfo.bIsTTSEngine == TRUE)
+    {
+      if (g_object_class_find_property (G_OBJECT_GET_CLASS (m_pstAudioDecoderElement), "pause-by-force"))
+      {
+        LMF_DBG_PRINT("[adecsink]pause-by-force == TRUE\n");
+        g_object_set (G_OBJECT(m_pstAudioDecoderElement), "pause-by-force", TRUE, NULL);
+      }
+      else
+      {
+        LMF_ERR_PRINT("[adecsink]has not 'pause-by-force' property\n");
+      }
+
+    }
+    if (m_stContentInfo.audioDataInfo.audio_data.pcmInfo.sampleRate != 0)
+    {
+      sample = transSampleRate(m_stContentInfo.audioDataInfo.audio_data.pcmInfo.sampleRate);
+    }
+
+    g_object_set(G_OBJECT(m_pstAudioDecoderElement), "channel", MEDIA_ADEC_MIX_BUF0,
+//                              "codec-type", LMF_ADEC_CODEC_TYPE_PCM, //caps already has information
+//                                "sample-rate", (gint)(sample/1000), // 44,
+//                              "num-of-channel", (contentInfo.audioDataInfo.audio_data.pcmInfo.channelMode == HOA_AUDIO_PCM_MONO)?(1):(2), //caps already has information
+//                              "bits-per-sample", (contentInfo.audioDataInfo.audio_data.pcmInfo.bitsPerSample == HOA_AUDIO_16BIT)?(16):(8), //caps already has information
+//                              "avg-bytes-per-sec", 1, //not use
+                 "block-align", 1,
+//                              "encoder-option", 0, //not use
+//                              "loop-mode", FALSE, //default FALSE
+                 NULL);
+    /*
+        caps = gst_caps_new_simple( "audio/x-raw-int",
+                                    "format",   GST_TYPE_FOURCC,  0x01,
+                                    "channels",   G_TYPE_INT,     (m_stContentInfo.audioDataInfo.audio_data.pcmInfo.channelMode == MEDIA_AUDIO_PCM_MONO)?(1):(2), // num of ch
+                                    "signed",   G_TYPE_BOOLEAN,   TRUE,
+                                    "rate",     G_TYPE_INT,     (sample == 0)?(44100):(sample),
+                                    "width",    G_TYPE_INT,     (m_stContentInfo.audioDataInfo.audio_data.pcmInfo.bitsPerSample == MEDIA_AUDIO_16BIT)?(16):(8),
+                                    NULL );
+    */
+    if (caps == NULL)
+    {
+      LMF_ERR_PRINT("[%s:%d] caps is NULL!!!\n", __FUNCTION__, __LINE__);
+      retVal = MEDIA_ERROR;
+      goto exit_adec_info_setting;
+    }
+
+    LMF_DBG_PRINT("channelMode:%d, bitsPerSample:%d\n", m_stContentInfo.audioDataInfo.audio_data.pcmInfo.channelMode, m_stContentInfo.audioDataInfo.audio_data.pcmInfo.bitsPerSample);
+    break;
+  }
+  case MEDIA_AUDIO_WMA:
+  {
+    gint wmaVer = 0;
+    gint formatTag = 0;
+    gint channels = 0;
+    gint rate = 0;
+    gint blockAlign = 0;
+    gint byterate = 0;
+    gint depth = 0;
+    gint data_size = 0;
+    GstBuffer *codec_buf = NULL;
+
+    wmaVer    = (gint)m_stContentInfo.audioDataInfo.audio_data.wmaInfo.wmaVer;
+    formatTag   = (gint)m_stContentInfo.audioDataInfo.audio_data.wmaInfo.wmaFormatTag;
+    channels  = (gint)m_stContentInfo.audioDataInfo.audio_data.wmaInfo.channels;
+    rate    = (gint)m_stContentInfo.audioDataInfo.audio_data.wmaInfo.samplesPerSec;
+    byterate  = (gint)m_stContentInfo.audioDataInfo.audio_data.wmaInfo.avgBytesPerSec;
+    blockAlign  = (gint)m_stContentInfo.audioDataInfo.audio_data.wmaInfo.blockAlign;
+    depth     = (gint)m_stContentInfo.audioDataInfo.audio_data.wmaInfo.bitsPerSample; // word_size
+    data_size   = (gint)m_stContentInfo.audioDataInfo.audio_data.wmaInfo.codec_data_size;
+
+    LMF_DBG_PRINT ("[WMA Info] ver %d, codec id %d\n", wmaVer, formatTag);
+    LMF_DBG_PRINT ("[WMA Info] ch %d, rate %d, block_align %d, byterate %d, depth:%d\n",
+                   channels, rate, blockAlign, byterate, depth);
+    LMF_DBG_PRINT ("[WMA Info] codec_data size %d\n", data_size);
+
+    caps = gst_caps_new_simple( "audio/x-wma",
+                                "wmaversion",   G_TYPE_INT, wmaVer,
+                                "codec_id",   G_TYPE_INT, formatTag,
+                                "channels",   G_TYPE_INT, channels,
+                                "rate",     G_TYPE_INT, rate,
+                                "block_align",  G_TYPE_INT, blockAlign,
+                                "byterate",   G_TYPE_INT, byterate,
+                                "depth",    G_TYPE_INT, depth,
+                                NULL );
+
+    if (caps == NULL)
+    {
+      LMF_ERR_PRINT("[%s:%d] caps is NULL!!!\n", __FUNCTION__, __LINE__);
+      retVal = MEDIA_ERROR;
+      goto exit_adec_info_setting;
+    }
+
+    if((data_size != 0) && (m_stContentInfo.audioDataInfo.audio_data.wmaInfo.codec_data != NULL))
+    {
+      codec_buf = gst_buffer_new_and_alloc(data_size);
+      if(codec_buf==NULL)
+      {
+        LMF_ERR_PRINT("%s] gst buffer new error!!!!! \n",__FUNCTION__);
+        return MEDIA_ERROR;
+      }
+//      memcpy (GST_BUFFER_DATA(codec_buf), (m_stContentInfo.audioDataInfo.audio_data.wmaInfo.codec_data), data_size);  changbok Todo:check GST_BUFFER error
+
+      gst_caps_set_simple(caps, "codec_data", GST_TYPE_BUFFER, codec_buf, NULL);
+      gst_buffer_unref(codec_buf);
+    }
+
+    break;
+  }
+  case MEDIA_AUDIO_DTS:
+  {
+    caps = gst_caps_new_simple("audio/x-dts", NULL);
+    if (caps == NULL)
+    {
+      LMF_ERR_PRINT("[%s:%d] caps is NULL!!!\n", __FUNCTION__, __LINE__);
+      retVal = MEDIA_ERROR;
+      goto exit_adec_info_setting;
+    }
+    break;
+  }
+  default:
+  {
+    break;
+  }
+  }
+
+  if (caps != NULL)
+  {
+    LMF_DBG_PRINT("[%s:%d] Set ADEC caps manually -- \n", __FUNCTION__, __LINE__);
+    gst_pad_set_caps(pad, caps);
+    gst_pad_use_fixed_caps(pad);
+    gst_caps_unref(caps);
+  }
+
+exit_adec_info_setting:
+  gst_object_unref(pad);
+  return retVal;
+}
+
 void
-CustomPipeline::_addNewPad (GstElement * element, GstPad * pad, gpointer data)
+CustomPipeline::addNewPad (GstElement * element, GstPad * pad, gpointer data)
 {
 
   char *pad_name;
@@ -768,7 +1527,7 @@ CustomPipeline::_addNewPad (GstElement * element, GstPad * pad, gpointer data)
 
     LMF_DBG_PRINT ("[Video] cnt=%d, str = %s\n", cnt, pStrStructure);
 
-    pCustomPipe->_addVideoPad (pad);
+    pCustomPipe->addVideoPad (pad);
 
     //add pad number
 //    m_CheckNum++;
@@ -779,13 +1538,13 @@ CustomPipeline::_addNewPad (GstElement * element, GstPad * pad, gpointer data)
 
     LMF_DBG_PRINT ("[Audio] cnt=%d, str = %s\n", cnt, pStrStructure);
 
-    pCustomPipe->_addAudioPad (capsStr, pad);
+    pCustomPipe->addAudioPad (capsStr, pad);
 
     //add pad number
     //    m_CheckNum++;
   } else if (g_strrstr (pad_name, "application")) {
     LMF_DBG_PRINT ("gst test] enter text pad added\n");
-    pCustomPipe->_addTextPad (pad);
+    pCustomPipe->addTextPad (pad);
 
   } else {
     LMF_DBG_PRINT ("NO LINK:: Mime Type is %s\n", pad_name);
@@ -804,25 +1563,25 @@ exit_addPad:
 }
 
 void
-CustomPipeline::_addVideoPad (GstPad * pad)
+CustomPipeline::addVideoPad (GstPad * pad)
 {
   GstPad *sinkpad = NULL;
   MEDIA_STATUS_T retVal = MEDIA_ERROR;
 
   //FF 1 : Add Video Element
-  retVal = _addVideoElement ();
+  retVal = addVideoElement ();
 
   if (retVal == MEDIA_ERROR) {
     LMF_ERR_PRINT
-    ("%s.%d: _LMF_STATIC_COMM_AddVideoElement() return Error !!!\n",
+    ("%s.%d: AddVideoElement() return Error !!!\n",
      __FUNCTION__, __LINE__);
     goto exit_addVideoPad;
   }
   //FF 2 : set Property on Video
-  retVal = _setPropertyOnVideo ();
+  retVal = setPropertyOnVideo ();
   if (retVal == MEDIA_ERROR) {
     LMF_ERR_PRINT
-    ("%s.%d: _LMF_STATIC_COMM_SetPropertyOnVideo() return Error !!!\n",
+    ("%s.%d: SetPropertyOnVideo() return Error !!!\n",
      __FUNCTION__, __LINE__);
 //    goto exit_addVideoPad;
   }
@@ -903,7 +1662,7 @@ exit_addVideoPad:
 }
 
 MEDIA_STATUS_T
-CustomPipeline::_setPropertyOnVideo (void)
+CustomPipeline::setPropertyOnVideo (void)
 {
   MEDIA_STATUS_T retVal = MEDIA_OK;
 
@@ -973,7 +1732,7 @@ CustomPipeline::_setPropertyOnVideo (void)
 }
 
 MEDIA_STATUS_T
-CustomPipeline::_addVideoElement (void)
+CustomPipeline::addVideoElement (void)
 {
   MEDIA_STATUS_T retVal = MEDIA_ERROR;
 
@@ -1007,7 +1766,7 @@ CustomPipeline::_addVideoElement (void)
     }
 
     /* changbok:Todo check callback compile error */
-    g_signal_connect(m_pstVideoDecoderElement, "video-underrun", G_CALLBACK(_underrunSignalCb), this);
+    g_signal_connect(m_pstVideoDecoderElement, "video-underrun", G_CALLBACK(underrunSignalCb), this);
 
     gst_bin_add (GST_BIN (m_pstPipeline), m_pstVideoDecoderElement);
   }
@@ -1017,7 +1776,7 @@ CustomPipeline::_addVideoElement (void)
 }
 
 void
-CustomPipeline::_addAudioPad (GstStructure * capsStr, GstPad * pad)
+CustomPipeline::addAudioPad (GstStructure * capsStr, GstPad * pad)
 {
   int number = 0;
   const gchar *mime;
@@ -1051,11 +1810,11 @@ CustomPipeline::_addAudioPad (GstStructure * capsStr, GstPad * pad)
   LMF_DBG_PRINT("%s:%d] mime = %s\n", __FUNCTION__, __LINE__, mime);
 
   //FF1 : Add Audio elemt and set Property
-  retVal = _addAudioElement(number);
+  retVal = addAudioElement(number);
 
   if(retVal == MEDIA_ERROR)
   {
-    LMF_ERR_PRINT("%s.%d: _addAudioElement() return Error !!!\n", __FUNCTION__, __LINE__);
+    LMF_ERR_PRINT("%s.%d: addAudioElement() return Error !!!\n", __FUNCTION__, __LINE__);
     goto exit_addAudioPad;
   }
 
@@ -1065,11 +1824,11 @@ CustomPipeline::_addAudioPad (GstStructure * capsStr, GstPad * pad)
     LMF_DBG_PRINT("%s.%d: Linking audio pad to audio decoder\n", __FUNCTION__, __LINE__);
 
     //FF2 : Add SinkPad
-    retVal = _addAudioSink(number,mime,pad,pid_num);
+    retVal = addAudioSink(number,mime,pad,pid_num);
 
     if(retVal == MEDIA_ERROR)
     {
-      LMF_ERR_PRINT("%s.%d: _addAudioSink() return Error !!!\n", __FUNCTION__, __LINE__);
+      LMF_ERR_PRINT("%s.%d: addAudioSink() return Error !!!\n", __FUNCTION__, __LINE__);
       goto exit_addAudioPad;
     }
   }
@@ -1084,11 +1843,11 @@ CustomPipeline::_addAudioPad (GstStructure * capsStr, GstPad * pad)
     else
     {
       //FF2 : Add SinkPad
-      retVal = _addAudioSink(number,mime,pad,pid_num);
+      retVal = addAudioSink(number,mime,pad,pid_num);
 
       if(retVal == MEDIA_ERROR)
       {
-        LMF_ERR_PRINT("%s.%d: _LMF_STATIC_COMM_AddAudioSink() return Error !!!\n", __FUNCTION__, __LINE__);
+        LMF_ERR_PRINT("%s.%d: AddAudioSink() return Error !!!\n", __FUNCTION__, __LINE__);
         goto exit_addAudioPad;
       }
     }
@@ -1105,7 +1864,7 @@ exit_addAudioPad:
 }
 
 MEDIA_STATUS_T
-CustomPipeline::_addAudioElement(gint audio_num)
+CustomPipeline::addAudioElement(gint audio_num)
 {
   MEDIA_STATUS_T retVal = MEDIA_ERROR;
 
@@ -1159,7 +1918,7 @@ CustomPipeline::_addAudioElement(gint audio_num)
         \
         return retVal;
       }
-      g_signal_connect(m_pstAudioDecoderElement, "audio-underrun", G_CALLBACK(_underrunSignalCb), this);
+      g_signal_connect(m_pstAudioDecoderElement, "audio-underrun", G_CALLBACK(underrunSignalCb), this);
 
       gst_bin_add(GST_BIN(m_pstPipeline), m_pstAudioDecoderElement);
     }
@@ -1186,7 +1945,7 @@ CustomPipeline::_addAudioElement(gint audio_num)
 }
 
 MEDIA_STATUS_T
-CustomPipeline::_addAudioSink(gint audio_num, const gchar *mime_type, GstPad *pad, guint pid_num)
+CustomPipeline::addAudioSink(gint audio_num, const gchar *mime_type, GstPad *pad, guint pid_num)
 {
   MEDIA_STATUS_T retVal = MEDIA_ERROR;
   GstPad *sinkpad = NULL;
@@ -1204,7 +1963,7 @@ CustomPipeline::_addAudioSink(gint audio_num, const gchar *mime_type, GstPad *pa
     }
 
     //Set Caps on Audio Sink
-    retVal = _setCapsOnAudioSink(mime_type,sinkpad);
+    retVal = setCapsOnAudioSink(mime_type,sinkpad);
 
     if (GST_PAD_LINK_OK != gst_pad_link(pad, sinkpad))
     {
@@ -1284,7 +2043,7 @@ CustomPipeline::_addAudioSink(gint audio_num, const gchar *mime_type, GstPad *pa
     LMF_DBG_PRINT("[%s:%d]pid num = %d, audioNum = %d\n", __FUNCTION__, __LINE__, pid_num, audio_num);
 
     //Set Caps on Audio Sink
-    _setCapsOnAudioSink(mime_type,sinkpad);
+    setCapsOnAudioSink(mime_type,sinkpad);
 
     if (GST_PAD_LINK_OK != gst_pad_link(pad, sinkpad))
     {
@@ -1308,7 +2067,7 @@ exit_addAudioSink:
 }
 
 MEDIA_STATUS_T
-CustomPipeline::_setCapsOnAudioSink(const char *mime_type, GstPad *sinkpad)
+CustomPipeline::setCapsOnAudioSink(const char *mime_type, GstPad *sinkpad)
 {
   GstCaps* pCaps = NULL;
   gint sampleRate = 0;
@@ -1317,7 +2076,7 @@ CustomPipeline::_setCapsOnAudioSink(const char *mime_type, GstPad *sinkpad)
   if ((strstr(mime_type, "audio/x-lpcm")))// && (gbWifiDebugMode == FALSE)) //Todo: changbok. need to check wifi debugmode
   {
     pAudioInfo = &(m_stContentInfo.audioDataInfo.audio_data.pcmInfo);
-    sampleRate = _transSampleRate(pAudioInfo->sampleRate);
+    sampleRate = transSampleRate(pAudioInfo->sampleRate);
 
     LMF_DBG_PRINT("[%s:%d]x-lpcm : need to set the caps info manually.\n", __FUNCTION__, __LINE__);
     LMF_DBG_PRINT("[x-lpcm] sampleRate: 	%d\n", sampleRate);
@@ -1354,7 +2113,7 @@ CustomPipeline::_setCapsOnAudioSink(const char *mime_type, GstPad *sinkpad)
 }
 
 void
-CustomPipeline::_addTextPad(GstPad *pad)
+CustomPipeline::addTextPad(GstPad *pad)
 {
   GstPad *sinkpad = NULL;
 
@@ -1392,7 +2151,7 @@ exit_addTextPad:
 }
 
 void
-CustomPipeline::_findDemux (gchar ** pDemuxName)
+CustomPipeline::findDemux (gchar ** pDemuxName)
 {
   int checkCnt = 0;
 
@@ -1409,12 +2168,12 @@ CustomPipeline::_findDemux (gchar ** pDemuxName)
 }
 
 MEDIA_STATUS_T
-CustomPipeline::_addDemuxElement (void)
+CustomPipeline::addDemuxElement (void)
 {
   gchar *pDemuxName = NULL;
 
   // find demux element
-  _findDemux (&pDemuxName);
+  findDemux (&pDemuxName);
 
   if (pDemuxName == NULL) {
     LMF_DBG_PRINT ("[%s:%d] demux find fail! container:%d\n", __FUNCTION__,  __LINE__, m_stContentInfo.container);
@@ -1474,7 +2233,7 @@ CustomPipeline::_addDemuxElement (void)
 
   /* changbok:Todo check callback compile error */
 //  g_signal_connect(gPipelineInfo.pDemuxElement, "pad-added", G_CALLBACK(_LMF_STATIC_AddNewPad_MTK), &gPipelineInfo);
-  g_signal_connect(m_pstDemuxElement, "pad-added", G_CALLBACK(_addNewPad),this);
+  g_signal_connect(m_pstDemuxElement, "pad-added", G_CALLBACK(addNewPad),this);
 
   /*  changbok - webos refactory - temp [ need to organize NC4.0 ifdef statements ]
       if(m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_FCC)
@@ -1533,7 +2292,7 @@ gboolean CustomPipeline::loadSpi_pre()
 {
 
   /* initial parameter in customer pipeline */
-  if (MEDIA_OK != _initValue ()) {
+  if (MEDIA_OK != initValue ()) {
     return false;
   } else {
 
@@ -1590,19 +2349,19 @@ CustomPipeline::errorString () const
 gboolean CustomPipeline::seekSpi (gint64 ms)
 {
 #if 0
-    if (pipeline->lmfSrcType == LMF_MEDIA_SRC_TYPE_MPEG_DASH)
-    {
-      retVal = LMF_STATIC_COMM_Seek(ch, (posMsec * GST_MSECOND));
-      pipeline->pendingSeekPosition = -1;
-      return retVal;
-    }
+  if (pipeline->lmfSrcType == LMF_MEDIA_SRC_TYPE_MPEG_DASH)
+  {
+    retVal = LMF_STATIC_COMM_Seek(ch, (posMsec * GST_MSECOND));
+    pipeline->pendingSeekPosition = -1;
+    return retVal;
+  }
 #endif // TODO :: custom pipeline
 }
 #endif
 
 void
 CustomPipeline::notifySourceCallbackFunc (GObject * pObject, GParamSpec * pParam,
-                                     gpointer u_data)
+    gpointer u_data)
 {
   CustomPipeline *genericPipeline =
     reinterpret_cast < CustomPipeline * >(u_data);

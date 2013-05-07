@@ -108,7 +108,7 @@ typedef enum
 
 } MEDIA_DATA_CHANNEL_T;
 
-typedef struct LMF_VIDEO_DATA_INFO
+typedef struct MEDIA_VIDEO_DATA_INFO
 {
   guint vcodec;
 
@@ -144,7 +144,7 @@ typedef enum ADEC_CH
   ADEC_CH_SUB
 } ADEC_CH_T;
 
-typedef struct LMF_AUDIO_DATA_INFO
+typedef struct MEDIA_AUDIO_DATA_INFO
 {
   // TODO: codec 별 data type define
   guint acodec;                 // audio codec  // from CP
@@ -165,6 +165,18 @@ typedef struct LMF_AUDIO_DATA_INFO
   ADEC_CH_T adecCh;
 
 } MEDIA_AUDIO_DATA_INFO_T;
+
+typedef  enum    // static header 로 이동
+{
+  MEDIA_ADEC_DECODE_MAIN    = 0x01,        ///< Main Audio Decoding
+  MEDIA_ADEC_DECODE_ASSO    = 0x02,        ///< Associate Audio Decoding
+
+  MEDIA_ADEC_MIX_BUF0        = 0x10,        ///< PCM Audio Mix in PCM Buffer0(Main PCM Audio Present)
+  MEDIA_ADEC_MIX_BUF1        = 0x20,        ///< PCM Audio Mix in PCM Buffer1(Associate PCM Audio Present)
+  MEDIA_ADEC_MIX_BUF2        = 0x40,        ///< PCM Audio Mix in PCM Buffer2
+  MEDIA_ADEC_MIX_BUF3        = 0x80        ///< PCM Audio Mix in PCM Buffer3
+
+} MEDIA_ADEC_DEC_MODE_T;
 
 typedef struct MEDIA_CUSTOM_CONTENT_INFO
 {
@@ -199,7 +211,7 @@ typedef struct MEDIA_CUSTOM_CONTENT_INFO
 
 #if 0                           /* jhtark - webos refactory - temp [ 변수 정리 필요 ] */
 #ifdef INCLUDE_DRM_MODULE
-  LMF_DRM_TYPE drmType;
+  MEDIA_DRM_TYPE drmType;
 #else
   DRM_TYPE drmType;
 #endif
@@ -222,7 +234,7 @@ typedef struct MEDIA_CUSTOM_CONTENT_INFO
 } MEDIA_CUSTOM_CONTENT_INFO_T;
 
 /**
- * LMF Static Src type
+ * MEDIA Static Src type
  */
 typedef enum
 {

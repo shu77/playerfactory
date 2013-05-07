@@ -119,31 +119,39 @@ private:
 
   CustomPipeline ();
 
-  guint8 _CheckContentType (void);
-  gint _transSampleRate(MEDIA_AUDIO_SAMPLERATE_T sampleRate);
+  guint8 checkContentType (void);
+  gint transSampleRate(MEDIA_AUDIO_SAMPLERATE_T sampleRate);
+  gint getAACFreqIdx(gint frequency);
 
   //callback functions
-  static void _callbackStopFeed (GstAppSrc * element, gpointer data /*MEDIA_SRC_T * app*/);
-  static gboolean _callbackSeekData (GstAppSrc * element, guint64 offset, gpointer data /*MEDIA_SRC_T * app*/);
-  static void _callbackStartFeed (GstAppSrc * element, guint32 size,  gpointer data /*MEDIA_SRC_T * app*/);
+  static void callbackStopFeed (GstAppSrc * element, gpointer data /*MEDIA_SRC_T * app*/);
+  static gboolean callbackSeekData (GstAppSrc * element, guint64 offset, gpointer data /*MEDIA_SRC_T * app*/);
+  static void callbackStartFeed (GstAppSrc * element, guint32 size,  gpointer data /*MEDIA_SRC_T * app*/);
 
-  static void _addNewPad (GstElement * element, GstPad * pad, gpointer data);
+  static void addNewPad (GstElement * element, GstPad * pad, gpointer data);
 
-  static void _underrunSignalCb(GstElement *element, gpointer data);
+  static void underrunSignalCb(GstElement *element, gpointer data);
 
-  MEDIA_STATUS_T _initValue (void);
-  MEDIA_STATUS_T _addSrcElement (guint64 startOffset, const gchar * pSrcPath);
-  MEDIA_STATUS_T _addSrcElement_Push (void);
-  MEDIA_STATUS_T _addDemuxElement (void);
-  void _findDemux (gchar ** pDemuxName);
-  void _addVideoPad (GstPad * pad);
-  MEDIA_STATUS_T _addVideoElement (void);
-  MEDIA_STATUS_T _setPropertyOnVideo (void);
-  void _addAudioPad (GstStructure * capsStr, GstPad * pad);
-  MEDIA_STATUS_T _addAudioElement(gint audio_num);
-  MEDIA_STATUS_T _addAudioSink(gint audio_num, const gchar *mime_type, GstPad *pad, guint pid_num);
-  MEDIA_STATUS_T _setCapsOnAudioSink(const char *mime_type, GstPad *sinkpad);
-  void _addTextPad (GstPad * pad);
+  MEDIA_STATUS_T initValue (void);
+  MEDIA_STATUS_T addSrcElement (guint64 startOffset, const gchar * pSrcPath);
+  MEDIA_STATUS_T addSrcElement_Push (void);
+  MEDIA_STATUS_T addSrcElement_ES(void);
+  MEDIA_STATUS_T addDemuxElement (void);
+  MEDIA_STATUS_T addSinkElement_ES(void);
+  MEDIA_STATUS_T setVideoPath_ES(void);
+  MEDIA_STATUS_T setVdecSinkInfo_ES(void);
+  MEDIA_STATUS_T setAudioPath_ES(void);
+  MEDIA_STATUS_T setAdecSinkInfo_ES(void);
+
+  void findDemux (gchar ** pDemuxName);
+  void addVideoPad (GstPad * pad);
+  MEDIA_STATUS_T addVideoElement (void);
+  MEDIA_STATUS_T setPropertyOnVideo (void);
+  void addAudioPad (GstStructure * capsStr, GstPad * pad);
+  MEDIA_STATUS_T addAudioElement(gint audio_num);
+  MEDIA_STATUS_T addAudioSink(gint audio_num, const gchar *mime_type, GstPad *pad, guint pid_num);
+  MEDIA_STATUS_T setCapsOnAudioSink(const char *mime_type, GstPad *sinkpad);
+  void addTextPad (GstPad * pad);
 
   static void notifySourceCallbackFunc (GObject * o, GParamSpec * p, gpointer d);
 
@@ -154,7 +162,7 @@ public:
   gboolean loadSpi_post();
   gboolean unloadSpi ();
   //gboolean seekSpi (gint64 ms); // TODO..
- 
+
   MEDIA_STATUS_T load (MEDIA_CUSTOM_SRC_TYPE_T srcType,
                        const gchar * pSrcPath,
                        const gchar * pWritePath,
@@ -167,7 +175,7 @@ public:
   gboolean isReadyToPlaySpi ();
 
   gboolean checkTimeToDecodeSpi(gpointer data);
-  
+
   gboolean SetLanguage(gint32 audioNum);
   MEDIA_STATUS_T FeedStream (guint8 * pBuffer, guint32 bufferSize,
                              guint64 pts, MEDIA_DATA_CHANNEL_T esData);
@@ -185,7 +193,7 @@ public:
   gboolean getTotalVideoAngleSpi(gpointer data,  gint *pTotalVideoAngleNum);
   gboolean setVideoAngleSpi(gpointer data, gint VideoAngleNum);
   gboolean getCurrentVideoAngleSpi(gpointer data, gint *pCurrentVideoAngleNum);
-  // end 
+  // end
 #endif
 
 };

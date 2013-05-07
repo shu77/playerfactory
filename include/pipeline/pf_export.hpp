@@ -309,8 +309,12 @@ typedef struct WIDEVINE_OPTION
  */
 typedef struct ES_STREAM_OPT
 {
-  guint32 bufferMinLevel;       // ES buffer size
-  guint32 bufferMaxLevel;       // ES buffer size
+  guint32 audioUserQBufferLevel;       // ES audio qeueu buffer size
+  guint32 audioBufferMinLevel;       // ES audio app buffer size
+  guint32 audioBufferMaxLevel;       // ES audio app buffer size
+  guint32 videoUserQBufferLevel;       // ES video qeueu buffer size
+  guint32 videoBufferMinLevel;       // ES video app buffer size
+  guint32 videoBufferMaxLevel;       // ES video app buffer size
 
   gint64 ptsToDecode;
   gboolean pauseAtDecodeTime;
