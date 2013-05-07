@@ -28,6 +28,8 @@ using namespace
     mediapipeline::utils;
 using namespace std;
 
+namespace bmi = boost::multi_index;
+
 #define MAX(a, b)  (((a) > (b)) ? (a) : (b))
 #define MEDIAPIPE_BUFFER_SIZE (24*1024*1024)
 #define DURATION_QUERY_MAX_NUM 20 //200ms x 20 =  4s
@@ -501,6 +503,31 @@ public:
   gboolean bUserStop;                            /**< To distinguish function called stop and play end */
 
   PlayEventListener *m_eventHelper;   /* for listen gstreamer event and handle */
+
+  // Element type to store in container
+  struct Element
+  {
+      std::string key;
+      int value;
+
+      Element(const std::string& key, int value) : key(key), value(value) {}
+  };
+   // Boost multi_index container
+  typedef bmi::multi_index_container<
+    Element,
+    bmi::indexed_by<
+        bmi::ordered_unique< bmi::member<Element,std::string,&Element::key> >,
+        bmi::sequenced<> >
+    >
+    MyContainer;
+  typedef MyContainer::nth_index<1>::type BySequence;
+  // Helper function that returns a sequence view of the container.
+  BySequence& bySequence(MyContainer& container) {return container.get<1>();}
+
+  MyContainer m_container; // media container table.
+  MyContainer m_aCodec; // media A-codec table.
+  MyContainer m_vCodec; // media V-codec table.
+
 };
 
 }

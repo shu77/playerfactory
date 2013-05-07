@@ -62,6 +62,104 @@ Pipeline::Pipeline ()
   InformationHandler::bsp_t infomationHndl = getInformationHandler();
   infomationHndl.reset (new InformationHandler ());
   setInformationHandler (infomationHndl);
+
+  // Access container by sequence. Push back elements.
+  BySequence& sequence = bySequence(m_container); // local assign.
+  /* START input all container data */
+	sequence.push_back(Element("WAV", MEDIA_FORMAT_WAV));
+	sequence.push_back(Element("MP3", MEDIA_FORMAT_MP3));
+	sequence.push_back(Element("ID3 tag", MEDIA_FORMAT_MP3));
+	sequence.push_back(Element("AAC", MEDIA_FORMAT_AAC));
+	sequence.push_back(Element("AVI", MEDIA_FORMAT_AVI));
+	sequence.push_back(Element("MP4", MEDIA_FORMAT_MP4));
+	sequence.push_back(Element("MPEG1", MEDIA_FORMAT_MPEG1));
+	sequence.push_back(Element("ASF", MEDIA_FORMAT_ASF));
+	sequence.push_back(Element("MKV", MEDIA_FORMAT_MKV));
+	sequence.push_back(Element("Matroska", MEDIA_FORMAT_MKV));
+	sequence.push_back(Element("FLV", MEDIA_FORMAT_FLV));
+	sequence.push_back(Element("Quicktime", MEDIA_FORMAT_MP4));
+	sequence.push_back(Element("ContainerPS", MEDIA_FORMAT_PS));
+	sequence.push_back(Element("ContainerTS", MEDIA_FORMAT_TS));
+	sequence.push_back(Element("ContainerRM", MEDIA_FORMAT_RM));
+	sequence.push_back(Element("ContainerRA", MEDIA_FORMAT_RA));
+  /* END input all container data */
+	
+  // Access container by key. Find an element.
+  // By default the container is accessed as nth_index<0>
+  MyContainer::const_iterator it = m_container.find("MKV");
+  if (it != m_container.end())
+      std::cout << "container" << it->value << "\n";
+  else
+      std::cout << "not found" <<endl;
+  // Access container by sequence. Pop elements in a FIFO manner,
+  while (!sequence.empty())
+  {
+      std::cout << sequence.front().value << "\n";
+      sequence.pop_front();
+  }
+
+  // Access container by sequence. Push back elements.
+  BySequence& sequence2 = bySequence(m_aCodec); // local assign.
+	sequence2.push_back(Element("mp3", MEDIA_AUDIO_MP3));
+	sequence2.push_back(Element("eac3", MEDIA_AUDIO_AC3PLUS));
+	sequence2.push_back(Element("eac-3", MEDIA_AUDIO_AC3PLUS));
+	sequence2.push_back(Element("ac3", MEDIA_AUDIO_AC3));
+	sequence2.push_back(Element("ac-3", MEDIA_AUDIO_AC3));
+	sequence2.push_back(Element("aac", MEDIA_AUDIO_AAC));	//mpeg 보다 위에 있어야 함.
+	sequence2.push_back(Element("mpeg", MEDIA_AUDIO_MPEG));
+	sequence2.push_back(Element("pcm", MEDIA_AUDIO_PCM));
+	sequence2.push_back(Element("wma", MEDIA_AUDIO_WMA));
+	sequence2.push_back(Element("dts", MEDIA_AUDIO_DTS));
+	sequence2.push_back(Element("realaudio", MEDIA_AUDIO_RA));
+	sequence2.push_back(Element("amr", MEDIA_AUDIO_AMR));
+	sequence2.push_back(Element("vorbis", MEDIA_AUDIO_VORBIS));
+
+  // Access container by key. Find an element.
+  // By default the container is accessed as nth_index<0>
+  MyContainer::const_iterator it2 = m_aCodec.find("realaudio");
+  if (it2 != m_container.end())
+      std::cout <<"acodec:"<< it2->value << "\n";
+  else
+      std::cout << "realaudio not found" <<endl;
+  // Access container by sequence. Pop elements in a FIFO manner,
+  while (!sequence2.empty())
+  {
+      std::cout << sequence2.front().value << "\n";
+      sequence2.pop_front();
+  }
+
+  // Access container by sequence. Push back elements.
+  BySequence& sequence3 = bySequence(m_vCodec); // local assign.
+	sequence3.push_back(Element("mpeg-1", MEDIA_VIDEO_MPEG1));
+	sequence3.push_back(Element("mpeg-2", MEDIA_VIDEO_MPEG2));
+	sequence3.push_back(Element("mpeg-4", MEDIA_VIDEO_MPEG4));	// todo more
+	sequence3.push_back(Element("microsoft windows media", MEDIA_VIDEO_WMV)); // todo more
+	sequence3.push_back(Element("vp6", MEDIA_VIDEO_NOT_SUPPORTED));
+	sequence3.push_back(Element("vp7", MEDIA_VIDEO_NOT_SUPPORTED));
+	sequence3.push_back(Element("264", MEDIA_VIDEO_H264));
+	sequence3.push_back(Element("263", MEDIA_VIDEO_H263));
+	sequence3.push_back(Element("26n", MEDIA_VIDEO_H263));	// test file : 029_AVI_H.263(CIF@2Mbps@24fps)_MP3(44.1kHz@128Kbps@16bit@2ch).avi
+	sequence3.push_back(Element("vc1", MEDIA_VIDEO_VC1));
+	sequence3.push_back(Element("divx", MEDIA_VIDEO_DIVX));
+	sequence3.push_back(Element("motion jpeg", MEDIA_VIDEO_MJPEG));
+	sequence3.push_back(Element("sorenson spark video", MEDIA_VIDEO_H263));
+	sequence3.push_back(Element("vp8", MEDIA_VIDEO_VP8));
+	sequence3.push_back(Element("realvideo", MEDIA_VIDEO_REALVIDEO));
+
+  // Access container by key. Find an element.
+  // By default the container is accessed as nth_index<0>
+  MyContainer::const_iterator it3 = m_vCodec.find("microsoft");
+  //MyContainer::const_iterator it3 = m_vCodec.equal_range( "microsoft", comp_substr() );
+  if (it3 != m_vCodec.end())
+      std::cout <<"vcodec:"<< it3->value << "\n";
+  else
+      std::cout << "microsoft not found" <<endl;
+  // Access container by sequence. Pop elements in a FIFO manner,
+  while (!sequence3.empty())
+  {
+      std::cout << sequence3.front().value << "\n";
+      sequence3.pop_front();
+  }
 }
 
 Pipeline::~Pipeline ()
@@ -1038,20 +1136,20 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
       if (gst_tag_list_get_string (tag_list, tag, &pStr)) {
         guint8 idx = 0;
         gboolean bConvertInfo = false;
-#if 0                           //TODO...
-        while (_containerTable[idx].pStr != NULL) {
-          if (strstr (pStr, _containerTable[idx].pStr) != NULL) {
+
+        MyContainer::const_iterator it = self->m_container.find(pStr);
+        if (it != self->m_container.end())
+        {
+            std::cout << it->value << "\n";
             bConvertInfo = true;
-            MEDIA_FORMAT_T prevFormat = m_source_format;
-            m_source_format = _containerTable[idx].format;
-            if (prevFormat == MEDIA_FORMAT_RM
-                && m_source_format == MEDIA_FORMAT_RA)
-              m_source_format = prevFormat;
-            break;
-          }
-          idx++;
+            MEDIA_FORMAT_T prevFormat = self->m_source_format;
+            self->m_source_format = (MEDIA_FORMAT_T)it->value;
+            if (prevFormat == MEDIA_FORMAT_RM && self->m_source_format == MEDIA_FORMAT_RA)
+              self->m_source_format = prevFormat;
         }
-#endif
+        else
+            std::cout << "such container not found" <<endl;
+
         if (bConvertInfo == false)
           std::cout << "[BUS] Unknown Container Format:" << "tag:" << tag <<
                     "format:" << pStr;
@@ -1076,7 +1174,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
                   gst_tag_get_nick (tag)
                   << ")" << pStr;
         LMF_TO_LOWER (pStr);
-#if 0                           //TODO...
+#if 0
         while (_aCodecTable[idx].pStr != NULL) {
           if (strstr (pStr, _aCodecTable[idx].pStr) != NULL) {
             bConvertInfo = true;
@@ -1119,7 +1217,7 @@ Pipeline::collectTags (const GstTagList * tag_list, const gchar * tag,
             self->notifyPipelineEvent (self, MEDIA_CB_MSG_SOURCE_INFO_UPDATED);
           }
         }
-#endif
+        #endif
         g_free (pStr);
       }
     } else if ((strcmp (tag, GST_TAG_VIDEO_CODEC) == 0)
