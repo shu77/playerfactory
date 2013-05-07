@@ -26,6 +26,8 @@
 #define LMF_DBG_PRINT g_print
 #define LMF_ERR_PRINT g_print
 #define LMF_BUFFER_PERI_PRINT g_print
+#define LMF_STATIC_PERI_PRINT
+
 
 /*******************************************************************************
   Local Constant Definitions
@@ -65,6 +67,11 @@ CustomPipeline::CustomPipeline ()
   m_audCount = 0;
   m_audCurrent = 0;
   m_lastPid = 0;
+
+  /* enable a/v for ES */
+  m_bEnableVideo = true;
+  m_bEnableAudio = true;
+
 #if 0                           /* jhtark - webos refactory - temp [ pipeline is created at other fucntion ] */
   m_pipeHandle = gst_element_factory_make ("playbin2", NULL);
   if (m_pipeHandle) {
@@ -898,24 +905,35 @@ CustomPipeline::initValue (void)
     return MEDIA_ERROR;
   }
 
+  /* received eos */
+  m_bReceivedEos = false;
+
+  m_bSeekLog = false;
+  m_currentPts = 0;
+
 #if 0                           /* jhtark - webos refactory - temp [ need to organize NC4.0 global values ] */
-  gbReceivedEos[ch] = FALSE;
-  _gbSeekLog = FALSE;
-  currentPts[ch] = 0;
   currentPlayPts[ch] = 0;
-  _gBufferCheckInterval[ch] = 0;
+#endif 
+
+  m_bufferCheckInterval = 0;
+
+#if 0                           /* jhtark - webos refactory - temp [ need to organize NC4.0 global values ] */
   memset (&_gBufferLowStableCnt[ch], 0x00, (sizeof (guint) * IDX_MAX));
   _gCurrentPtsUpdateCnt[ch] = 0;
-  _gIsStartedPlay[ch] = FALSE;
+#endif 
 
-  memset (&_gFeedTotal[ch], 0x00, (sizeof (guint64) * IDX_MAX));
+  m_IsStartedPlay = false;
+
+  memset (&m_FeedTotal, 0x00, (sizeof (guint64) * IDX_MAX));
+
+#if 0  /* jhtark - webos refactory - temp [ need to organize NC4.0 global values ] */
   memset (&_gBufferLevel[ch], 0x00, (sizeof (guint64) * IDX_MAX));
-  memset (&_gFeedRate[ch], 0x00, (sizeof (LMF_FEED_RATE_T) * IDX_MAX));
+memset (&_gFeedRate[ch], 0x00, (sizeof (LMF_FEED_RATE_T) * IDX_MAX));
   memset (&gPipelineInfo[ch], 0x00, sizeof (LMF_PIPELINE_INFO_T));
 
   gCheckPadNum = 0;
   gbCheckFirstPlay = FALSE;
-#endif
+#endif 
 
   return MEDIA_OK;
 }
@@ -1020,9 +1038,7 @@ CustomPipeline::setVdecSinkInfo_ES(void)
     LMF_DBG_PRINT ("[ES:VC1 Info] ver: %d, codec %"GST_FOURCC_FORMAT" (0x%08x)\n",
                    wmvVer, GST_FOURCC_ARGS(fourcc), fourcc);
 
-    caps = gst_caps_new_simple( "video/x-wmv",
-                                "container", G_TYPE_STRING, "ES",
-                                NULL );
+    caps = gst_caps_new_simple( "video/x-wmv","container", G_TYPE_STRING, "ES", NULL );
     if (caps == NULL)
     {
       LMF_ERR_PRINT("[%s:%d] caps is NULL!!!\n", __FUNCTION__, __LINE__);
@@ -2264,9 +2280,105 @@ CustomPipeline::SetLanguage(gint32 audioNum)
   return TRUE;
 }
 
-MEDIA_STATUS_T
-CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize, guint64 pts,
-                            MEDIA_DATA_CHANNEL_T esData)
+MEDIA_STATUS_T CustomPipeline::CheckBufferAvailable(MEDIA_SRC_ELEM_IDX_T chIdx, gboolean *pbBufferAvailable, guint32 reqBufferSize)
+{
+	MEDIA_STATUS_T retVal = MEDIA_OK;
+	guint64 bufferSize = 0, queuedSize=0, remainedSize = 0;
+
+	*pbBufferAvailable = FALSE;
+
+	//MF_ENTER_FUNC();
+
+#if 0  /* jhtark - webos refactory - temp [ open app src function ] */
+	if(m_stSrcInfo[chIdx].pSrcElement != NULL)
+	{
+		queuedSize = gst_app_src_get_queued_bytes(GST_APP_SRC(m_stSrcInfo[chIdx].pSrcElement));
+	}
+#endif 
+
+	g_object_get(G_OBJECT(m_stSrcInfo[chIdx].pSrcElement), "max-bytes", &bufferSize, NULL);
+
+	LMF_DBG_PRINT("[%s:%d]%s(0x%X), queuedSize:%"G_GUINT64_FORMAT"\n",
+						__FUNCTION__, __LINE__, (chIdx == IDX_VIDEO)?"Video":"Audio", m_eSrcType, queuedSize);
+
+	if(bufferSize <= queuedSize)
+		remainedSize = 0;
+	else
+		remainedSize = bufferSize - queuedSize;
+
+	LMF_DBG_PRINT("[%s:%d]%s(0x%X), Max:%"G_GUINT64_FORMAT", queued:%"G_GUINT64_FORMAT", remained:%"G_GUINT64_FORMAT"\n",
+						__FUNCTION__, __LINE__, (chIdx == IDX_VIDEO)?"Video":"Audio", m_eSrcType, bufferSize, queuedSize, remainedSize);
+
+	if(remainedSize >= (guint64)reqBufferSize)
+	{
+		LMF_STATIC_PERI_PRINT("[%s:%d]buffer is availe (size:%"G_GUINT64_FORMAT")\n", __FUNCTION__, __LINE__, remainedSize);
+		*pbBufferAvailable = TRUE;
+	}
+
+	LMF_STATIC_PERI_PRINT("[%s:%d] buffer is %s\n", __FUNCTION__, __LINE__, (*pbBufferAvailable == TRUE)?"Available(O)":"Unavailable(X)");
+	return retVal;
+}
+
+MEDIA_STATUS_T CustomPipeline::IsPossibleFeed(MEDIA_DATA_CHANNEL_T esData, guint32 reqBufferSize)
+{
+	MEDIA_STATUS_T retVal = MEDIA_OK;
+	MEDIA_SRC_ELEM_IDX_T chIdx = IDX_MULTI;
+	gboolean bBufferAvailable = false;
+
+	chIdx = ((esData == MEDIA_DATA_CH_NONE) || (esData == MEDIA_DATA_CH_A))?(IDX_VIDEO):(IDX_AUDIO);
+
+	if(((m_bEnableVideo != TRUE) && (esData == MEDIA_DATA_CH_A)) ||
+	   ((m_bEnableAudio != TRUE) && (esData == MEDIA_DATA_CH_B)))
+	{
+		LMF_DBG_PRINT("[%s:%d]\n", __FUNCTION__, __LINE__);
+		retVal = MEDIA_OK;
+	}
+	else if(m_eNeedFeedData[chIdx] == CUSTOM_BUFFER_FULL)
+	{
+#if 0  /* jhtark - webos refactory - temp [ open xlibc_read_msticks function    ] */
+		if ((xlibc_read_msticks()-m_bufferCheckInterval) < 500)
+		{
+			LMF_STATIC_PERI_PRINT("...skip to check : %llu - %llu < 500ms\n", xlibc_read_msticks(), m_bufferCheckInterval);
+			retVal = MEDIA_ERROR;
+		}
+		else
+#endif 
+		{
+
+#if 0  /* jhtark - webos refactory - temp [ open xlibc_read_msticks function    ] */
+			m_bufferCheckInterval = xlibc_read_msticks();
+#endif 
+			if(CheckBufferAvailable(chIdx, &bBufferAvailable, reqBufferSize) == MEDIA_OK)
+			{
+				if (bBufferAvailable == TRUE)
+				{
+					m_eNeedFeedData[chIdx] = CUSTOM_BUFFER_FEED;
+					LMF_STATIC_PERI_PRINT("[%s:%d] %s buffer : blocked -> available (can feed).. ^0^\n", __FUNCTION__, __LINE__, (chIdx == IDX_VIDEO)?"Video":"Audio");
+				}
+				else
+				{
+					LMF_STATIC_PERI_PRINT("[%s:%d] bBufferAvailable = FALSE (%s data)\n", __FUNCTION__, __LINE__, (chIdx == IDX_VIDEO)?"Video":"Audio");
+					retVal = MEDIA_ERROR;
+				}
+			}
+			else
+		 	{
+				LMF_STATIC_PERI_PRINT("[%s:%d] NOT_OK (%s data)\n", __FUNCTION__, __LINE__, (chIdx == IDX_VIDEO)?"Video":"Audio");
+				retVal = MEDIA_ERROR;
+		 	}
+		}
+	}
+	else if((m_eNeedFeedData[chIdx] == CUSTOM_BUFFER_LOW)||
+		    (m_eNeedFeedData[chIdx] == CUSTOM_BUFFER_LOCKED))
+	{
+		m_eNeedFeedData[chIdx] = CUSTOM_BUFFER_FEED;
+	}
+
+	return retVal;
+}
+
+
+MEDIA_STATUS_T CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize, guint64 pts, MEDIA_DATA_CHANNEL_T esData)
 {
   GstBuffer *pAppbuf = NULL;
   GstFlowReturn ret;
@@ -2281,10 +2393,449 @@ CustomPipeline::FeedStream (guint8 * pBuffer, guint32 bufferSize, guint64 pts,
   static gint _idx[IDX_MAX] = { 0, };
 
   if (m_pstPipeline == NULL)
-    LOG_FUNCTION_SCOPE_NORMAL_D
-    ("[CustomPipeline][FeedStream]pipeline is NULL \n");
+{
+		LOG_FUNCTION_SCOPE_NORMAL_D("[CustomPipeline][FeedStream]pipeline is NULL \n");
+		return MEDIA_ERROR;
+	}
+	
+ /* changbok:Todo  */
 
-  /* changbok:Todo  */
+	if( (m_uNumOfSrc == 1) && (m_stContentInfo.acodec == MEDIA_AUDIO_PCM) )	 // pcm 이 ch b 로 들어오고 있어 임시 적용 함.
+	{
+		esData = MEDIA_DATA_CH_NONE;
+	}
+
+	if((m_bEnableVideo == TRUE) && (m_uNumOfSrc == 2))
+	{
+		if		(esData == MEDIA_DATA_CH_A)		srcIdx = IDX_VIDEO;
+		else if (esData == MEDIA_DATA_CH_B)		srcIdx = IDX_AUDIO;
+	}
+	else
+	{
+		srcIdx = IDX_VIDEO;
+	}
+
+	if(m_stSrcInfo[srcIdx].pSrcElement = NULL)
+	{
+		LMF_ERR_PRINT("[%s:%d][%s] src elem is null!!\n", __FUNCTION__, __LINE__, (srcIdx == IDX_VIDEO)?"Video":"Audio");
+		return MEDIA_ERROR;
+	}
+
+	if(bufferSize == 0)
+	{
+		LMF_ERR_PRINT("[ERR] feed data size is 0 (dataCh:%d)!!\n", esData);
+		return MEDIA_ERROR;
+	}
+
+	if((m_bEnableAudio != TRUE) && (esData == MEDIA_DATA_CH_B))
+	{
+		/* TODO : enable feed log */
+//		if (gbEnableFeedLog == TRUE)
+			LMF_DBG_PRINT("-");
+		return MEDIA_OK;
+	}
+
+	if((m_bEnableVideo != TRUE) && (esData ==MEDIA_DATA_CH_A))
+	{
+		/* TODO : enable feed log */
+//		if (gbEnableFeedLog == TRUE)
+			LMF_DBG_PRINT(".");
+		return MEDIA_OK;
+	}
+	
+	if(IsPossibleFeed(esData, bufferSize) != MEDIA_OK)
+	{
+		LMF_DBG_PRINT("[BUFFER FULL] Can't push data into buffer (%s)\n", ((esData == MEDIA_DATA_CH_A)||(esData == MEDIA_DATA_CH_NONE))?"Video":"Audio");
+		return MEDIA_BUFFER_FULL;
+	}
+
+
+	if(esData != MEDIA_DATA_CH_NONE)
+	{
+			/* TODO : enable feed log */
+//		if((gbTestMode == TRUE) || (gbMRTestMode == TRUE))	// to do the test with BCM PES stream
+		if(0)		/* TODO : enable feed log <-- remove */
+		{
+			#if 0
+			timestamp	= (guint64)pts;
+			feedSize	= bufferSize;
+			timestamp	= (pts/45)*1000*1000;
+			#else
+			if(pts <= 0)
+			{
+				timestamp = tempTimestamp[srcIdx];
+				tempTimestamp[srcIdx] += 33000000;
+			}
+			else
+			{
+				timestamp	= pts;
+			}
+
+			feedSize	= bufferSize;
+
+			/* TODO : enable feed log */
+//			if (gbEnableFeedLog == TRUE)
+				//LMF_DBG_PRINT("[ch:%d] timestamp= %llu\n", esData, timestamp);
+				LMF_DBG_PRINT("[ch:%d] timestamp= %"G_GUINT64_FORMAT"\n", esData, timestamp);
+			
+
+			#endif
+		}
+		else
+		{
+			if(m_stContentInfo.bSeperatedPTS == TRUE)
+			{
+				timestamp	= (guint64)pts;
+				feedSize	= bufferSize;
+			}
+			else if(bufferSize >= DATA_FEED_MIN)
+			{
+				memcpy(&timestamp, pBuffer, sizeof(timestamp));
+
+				feedSize = bufferSize - sizeof(timestamp);
+				pBuffer += sizeof(timestamp);
+			}
+			else
+			{
+				LMF_ERR_PRINT("[%s:%d]bufferSize = %d\n", __FUNCTION__, __LINE__, bufferSize);
+				return MEDIA_ERROR;
+			}
+		}
+
+		// ES case : EOS 처리.
+		if((feedSize == sizeof(FLASH_H264_EOS)) &&
+		   (memcmp(pBuffer, FLASH_H264_EOS, sizeof(FLASH_H264_EOS)) == 0))
+		{
+			m_bReceivedEos = true;
+
+			LMF_DBG_PRINT("[%s:%d] EOS Received! \n", __FUNCTION__, __LINE__);
+
+#if 0  /* jhtark - webos refactory - temp [ open app src function ] */
+			if(gst_app_src_end_of_stream (GST_APP_SRC (m_stSrcInfo[IDX_VIDEO].pSrcElement)) != GST_FLOW_OK)
+			{
+				LMF_ERR_PRINT("Push EOS ERROR (IDX_VIDEO)\n");
+			}
+#endif 
+
+#if 0  /* jhtark - webos refactory - temp [ open app src function ] */
+			if(gst_app_src_end_of_stream (GST_APP_SRC (m_stSrcInfo[IDX_AUDIO].pSrcElement)) != GST_FLOW_OK)			
+			{
+				LMF_ERR_PRINT("Push EOS ERROR (IDX_AUDIO)\n");
+			}
+#endif 
+
+			if ((m_stPrerollState.bUsePreroll == TRUE) &&
+				(srcIdx == IDX_VIDEO) &&	// multi or video , TODO : could be audio
+				(m_stPrerollState.bIsPreroll == TRUE))
+			{
+				LMF_DBG_PRINT("#### Stream Play start --- (EOS)\n");
+				//DDI_ADEC_SetAudSyncMode(FALSE);
+
+				/* TODO : call play  */
+				//LMF_PLYR_CTRL_Play(pLmfPlayerHndl);	// play or resume
+				m_stPrerollState.bIsPreroll	= FALSE;
+				m_stPrerollState.bufferedSize	= 0;
+				
+				m_IsStartedPlay = true;
+			}
+
+			return MEDIA_OK;
+		}
+	}
+	else
+	{
+		guint8 eosStr[] = "EOS";
+		if(m_stContentInfo.bSeperatedPTS == TRUE)
+		{
+			timestamp	= (guint64)pts;
+			feedSize	= bufferSize;
+			LMF_STATIC_PERI_PRINT("[%s:%d] need to set pts\n", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			LMF_STATIC_PERI_PRINT("[%s:%d] no need to set pts\n", __FUNCTION__, __LINE__);
+		}
+		//EOS 처리.
+		// add (const char *) for build error 
+		if((bufferSize == sizeof(eosStr)) && (strncmp((const char *)pBuffer, (const char *)eosStr, sizeof(eosStr)) == 0))
+		{
+			m_bReceivedEos = TRUE;
+			LMF_DBG_PRINT("[%s:%d] EOS Received! \n", __FUNCTION__, __LINE__);
+
+			/* TODO : check app src function  */
+			//if(gst_app_src_end_of_stream (GST_APP_SRC (m_stSrcInfo[IDX_MULTI].pSrcElement)) != GST_FLOW_OK)
+			{
+				LMF_ERR_PRINT("Push EOS ERROR (IDX_VIDEO)\n");
+			}
+			return MEDIA_OK;
+		}
+
+		feedSize = bufferSize;
+	}
+
+	
+	if(m_bReceivedEos == TRUE)
+	{
+		LMF_ERR_PRINT("Already EOS received!!! ....... mk plz ~~ \n");
+		return MEDIA_ERROR;
+	}
+
+#if 0	/* TODO : plz, add svp key */
+	if(pSvpKeyData != NULL)
+	{
+		//LMF_DBG_PRINT("[SVP path]Set SVP key data\n");
+
+		pFeedBuf = (guint8 *)g_malloc(sizeof(MEDIA_SVP_ENCRYPT_KEY_INFO_T)+feedSize);
+		if(pFeedBuf==NULL)
+		{
+			LMF_ERR_PRINT("%s memory allocation error!!!!! \r\n", __FUNCTION__);
+			return LMF_NOT_OK;
+		}
+
+		MEDIA_SVP_ENCRYPT_KEY_INFO_T *in_band = (MEDIA_SVP_ENCRYPT_KEY_INFO_T *)pFeedBuf;
+		if(in_band == NULL)
+		{
+			LMF_ERR_PRINT("[%s:%d]fail set SVP path SVP key data\n",__FUNCTION__, __LINE__);
+			return LMF_NOT_OK;
+		}
+
+		//LMF_DBG_PRINT("[SVP path]check u2SegNum - %lu\n",pSvpKeyData->u2SegNum);
+
+		if(pSvpKeyData->u2SegNum > 1)
+		{
+			int countSegNum;
+			for(countSegNum=0;countSegNum<pSvpKeyData->u2SegNum;countSegNum++)
+			{
+				/*LMF_DBG_PRINT("[SVP path]check SVP key data (segment num:%d) atSeginfo - %lu:%d\n",countSegNum,
+							(pSvpKeyData->atSegInfo[countSegNum]).u4Size, (pSvpKeyData->atSegInfo[countSegNum]).fgEnc);*/ // to check inbanddata_set info
+
+				in_band->u2SegNum = countSegNum+1;
+				in_band->atSegInfo[countSegNum].u4Size = (pSvpKeyData->atSegInfo[countSegNum]).u4Size;
+        		in_band->atSegInfo[countSegNum].fgEnc = (pSvpKeyData->atSegInfo[countSegNum]).fgEnc;
+			}
+		}
+		else
+		{
+			in_band->u2SegNum = 1;
+        	in_band->atSegInfo[0].u4Size = feedSize;
+        	in_band->atSegInfo[0].fgEnc = FALSE;
+		}
+
+		memcpy(pFeedBuf+sizeof(MEDIA_SVP_ENCRYPT_KEY_INFO_T), pBuffer, feedSize);
+
+		pAppbuf = gst_app_buffer_new(pFeedBuf, sizeof(MEDIA_SVP_ENCRYPT_KEY_INFO_T)+feedSize, NULL, NULL);
+
+		GST_BUFFER_MALLOCDATA(pAppbuf) = pFeedBuf;
+#if (PLATFORM_TYPE == LG_PLATFORM)
+		GST_BUFFER_DATA(pAppbuf) = pFeedBuf;
+		GST_BUFFER_SIZE(pAppbuf) = feedSize + sizeof(MEDIA_SVP_ENCRYPT_KEY_INFO_T);
+#else
+		GST_BUFFER_DATA(pAppbuf) = pFeedBuf + sizeof(MEDIA_SVP_ENCRYPT_KEY_INFO_T);
+		GST_BUFFER_SIZE(pAppbuf) = feedSize;
+#endif
+
+	}
+	else
+#endif 
+	{
+		pFeedBuf = (guint8 *)g_malloc(feedSize);	// do not use MF_MAIN_Malloc (don't need to monitoring in LMF)		
+		if(pFeedBuf==NULL)
+		{
+			LMF_ERR_PRINT("%s memory allocation error!!!!! \r\n", __FUNCTION__);
+			return MEDIA_ERROR;
+		}
+		memcpy(pFeedBuf, pBuffer, feedSize);
+
+#if 0	/* TODO : dump feed  */
+
+		if(gStaticDumpMode == LMF_DUMP_EACH_CHUNK)
+		{
+			gint 	chunkFd = 0;
+			gchar 	fileName[256] = {0,};
+
+			if(srcIdx == IDX_VIDEO)
+				sprintf(fileName, "/mnt/usb/usb1/Drive1/chunk/%d_Video_%llu.es", _idx[srcIdx], timestamp);
+			else
+				sprintf(fileName, "/mnt/usb/usb1/Drive1/chunk/%d_Audio_%llu.es", _idx[srcIdx], timestamp);
+			chunkFd = open(fileName, O_WRONLY | O_CREAT | O_TRUNC , 0777);
+
+			if (chunkFd > 0)
+				write(chunkFd, pFeedBuf, feedSize);
+
+			if (chunkFd > 0)
+				close(chunkFd);
+			_idx[srcIdx]++;
+		}
+
+		if (_gTestFd[srcIdx] > 0)
+			write(_gTestFd[srcIdx], pFeedBuf, feedSize);
+#endif 
+
+#if (GST_VERSION_MAJOR >= 1)
+
+#else
+		pAppbuf = gst_app_buffer_new(pFeedBuf, feedSize, g_free, pFeedBuf);
+#endif 
+
+	}
+
+	if (pAppbuf)
+	{
+		if((esData != MEDIA_DATA_CH_NONE) ||(m_stContentInfo.bSeperatedPTS == TRUE))	// raw data
+		{
+			GST_BUFFER_TIMESTAMP(pAppbuf) = timestamp;
+
+			if(srcIdx == IDX_VIDEO)	// included audio only
+			{
+				m_currentPts = timestamp;	// temp(pause 상태에서도 feed가 되어 값이 증가됨.)
+			}
+		}
+
+
+		if(m_bSeekLog == true)
+		{
+			LMF_DBG_PRINT("[after flushing][%s] pts(%"G_GUINT64_FORMAT"), size(%d)\n",	(srcIdx == IDX_VIDEO)?"VIDEO":"AUDIO", timestamp, bufferSize);
+		}
+
+#if 0  /* jhtark - webos refactory - temp [ change appbuffer to gst buffer   ] */
+		ret = gst_app_src_push_buffer(GST_APP_SRC(m_stSrcInfo[srcIdx].pSrcElement), pAppbuf);
+#endif 
+		if( ret < 0 )
+		{
+			LMF_ERR_PRINT("gst_app_src_push_buffer error %d (srcIdx:%d, dataCh:%d)\n", ret, srcIdx, esData);
+			//if(pFeedBuf != NULL) g_free(pFeedBuf);	// error 발생 시 gst_app_src_push_buffer 내부에서 해제 됨.
+			pFeedBuf = NULL;							// 해당 주소만 clear.
+			return MEDIA_ERROR;
+		}
+		else
+		{
+			/* TODO : call updatefeedrate  */
+			//_LMF_STATIC_COMM_UpdateFeedRate(ch, srcIdx, feedSize);
+
+			m_feededTotalSize += feedSize;	// audio + video
+			m_FeedTotal[srcIdx] += feedSize;	// audio or video
+
+			if((m_bSeekLog == true) && (srcIdx == IDX_VIDEO))
+			{
+				LMF_DBG_PRINT("Buffering Video ] size(%d), %d(...) --> %d(max)\n",	bufferSize, m_stPrerollState.bufferedSize, m_stPrerollState.maxBufferSize);
+			}
+
+//			g_print("use %s, ing %s\n", (gPipelineInfo[ch].prerollState.bUsePreroll == TRUE)?"OO":"XX", (gPipelineInfo[ch].prerollState.bIsPreroll == TRUE)?"OO":"XX");
+//			g_print("Buffering ] size(%d), %d(...) --> %d(max)\n", bufferSize, gPipelineInfo[ch].prerollState.bufferedSize, gPipelineInfo[ch].prerollState.maxBufferSize);
+
+			if ((m_stPrerollState.bUsePreroll == TRUE) && 
+					(srcIdx == IDX_VIDEO) &&	// multi or video
+					(m_stPrerollState.bIsPreroll == TRUE))
+			{
+				m_stPrerollState.bufferedSize += feedSize;	// video only
+
+#if 0  /* jhtark - webos refactory - temp [ change getstate & play function  ] */
+
+				// To Do : change the pre-roll valuse
+				// TODO : consider the small size data
+				if(m_stPrerollState.bufferedSize >= m_stPrerollState.maxBufferSize)
+				{
+					//DDI_ADEC_SetAudSyncMode(FALSE);
+					if((m_eSrcType != MEDIA_CUSTOM_SRC_TYPE_ES) ||
+						(((m_stSrcInfo[IDX_VIDEO].pSrcElement == NULL) || (m_FeedTotal[IDX_VIDEO] > 0)) &&
+						 ((m_stSrcInfo[IDX_AUDIO].pSrcElement == NULL) || (m_FeedTotal[IDX_AUDIO] > 0)) &&
+						 (LMF_PLYR_CTRL_GetState(pLmfPlayerHndl) == PausedState) &&
+						 (m_IsStartedPlay == false)))
+					{
+						LMF_DBG_PRINT("#### Stream Play start --- (feeding) \n");
+
+						LMF_PLYR_CTRL_Play(pLmfPlayerHndl);	// play or resume
+						m_IsStartedPlay = true;
+
+						m_stPrerollState.bIsPreroll	= FALSE;
+						m_stPrerollState.bufferedSize = 0;
+						m_bSeekLog = false;
+					}
+				}
+#endif 
+			}
+			else if ((m_eSrcType == MEDIA_CUSTOM_SRC_TYPE_ES) &&
+				     (m_stPrerollState.bUsePreroll == FALSE))
+			{
+#if 0    /* jhtark - webos refactory - temp [ change getplaystate & getpendingstate & play function ] */
+				// buffer full 이 발생해도 application 에서 play 를 call 하지 않는다면 자동으로 play start 를 수행하지 않음.
+				if((API_LMF_PLYR_GetPlayState(ch) == PlayingState) &&
+				   (LMF_PLYR_CTRL_GetPendingState(pLmfPlayerHndl) == PausedState) &&
+				   (m_IsStartedPlay == false))
+				   {
+						LMF_DBG_PRINT("#### Stream Play start --- (feeding / no preroll) \n");
+						LMF_PLYR_CTRL_Play(pLmfPlayerHndl); // play or resume2
+						m_IsStartedPlay = true;
+				}
+#endif
+			}
+
+			feedIndex++;
+#if 0	/* TODO : enable feed log */
+			if (gbEnableFeedLog == TRUE)
+			{
+
+				if((dataCh == LMF_FLASH_CH_NONE) && (gPipelineInfo[ch].contentInfo.bSeperatedPTS == FALSE))
+				{
+					LMF_DBG_PRINT("[Ch:%d](O(%d)(%llu)(%llu)(%d))\n", ch, feedSize, m_FeedTotal[srcIdx], m_feededTotalSize, srcIdx);
+				}
+				else
+				{
+					LMF_DBG_PRINT("[Ch:%d](%llu(%c)(%d))\n", ch, timestamp, (srcIdx == IDX_VIDEO)?'A':'B', feedSize);
+				}
+
+				if(feedIndex%20 == 0)
+				{
+					LMF_DBG_PRINT("\n");
+					if(gPipelineInfo[ch].prerollState.bIsPreroll == TRUE)
+						LMF_DBG_PRINT("Buffering ][Ch:%d] %d(...) --> %d(max)\n", ch, gPipelineInfo[ch].prerollState.bufferedSize, gPipelineInfo[ch].prerollState.maxBufferSize);
+
+					feedIndex = 0;
+				}
+			}
+#endif 
+		}
+
+	}
+	else
+	{
+		if(pFeedBuf != NULL) g_free(pFeedBuf);
+		LMF_DBG_PRINT("can't get app src buffer \n");
+		return MEDIA_ERROR;
+	}
+
+	return MEDIA_OK;  
+}
+
+MEDIA_STATUS_T CustomPipeline::PushEOS( )
+{
+	LMF_DBG_PRINT("[%s]  enter\n", __FUNCTION__);
+
+	m_bReceivedEos = true;
+
+	if(m_stSrcInfo[IDX_VIDEO].pSrcElement != NULL)
+	{
+#if 0  /* jhtark - webos refactory - temp [ open app src function ] */
+		if(gst_app_src_end_of_stream (GST_APP_SRC (m_stSrcInfo[IDX_VIDEO].pSrcElement)) != GST_FLOW_OK)
+		{
+			LMF_ERR_PRINT("Push EOS ERROR (IDX_VIDEO)\n");
+			return MEDIA_ERROR;
+		}
+#endif 
+	}
+
+	if(m_stSrcInfo[IDX_AUDIO].pSrcElement != NULL)
+	{
+#if 0  /* jhtark - webos refactory - temp [ open app src function ] */
+		if(gst_app_src_end_of_stream (GST_APP_SRC (m_stSrcInfo[IDX_AUDIO].pSrcElement)) != GST_FLOW_OK)
+		{
+			LMF_ERR_PRINT("Push EOS ERROR (IDX_AUDIO)\n");
+			return MEDIA_ERROR;
+		}
+#endif 
+	}
+
+	return MEDIA_OK;
 }
 
 /* --------------------- start basic pipeline control --------------------------*/

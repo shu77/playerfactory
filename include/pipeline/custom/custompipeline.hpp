@@ -13,6 +13,11 @@
 
 namespace mediapipeline
 {
+#define DATA_FEED_MIN 	8	// 8(pts) + a
+
+const gint8 FLASH_H264_EOS[] = {
+	0x00, 0x00, 0x01, 0x0A
+};
 
 /* src element handle */
 typedef struct
@@ -117,6 +122,20 @@ private:
   CUSTOM_PREROLL_STATE_T m_stPrerollState;
   CUSTOM_CONTAINER_TABLE_T m_stDmxList[4];
 
+	guint64 m_FeedTotal[IDX_MAX];
+	guint64 m_currentPts;
+	guint64 m_feededTotalSize;
+	gboolean m_IsStartedPlay;	
+	gboolean m_bSeekLog;
+
+	guint64 m_bufferCheckInterval;
+  
+
+	gboolean m_bEnableVideo;
+	gboolean m_bEnableAudio;
+
+	gboolean m_bReceivedEos;
+
   CustomPipeline ();
 
   guint8 checkContentType (void);
@@ -177,8 +196,12 @@ public:
   gboolean checkTimeToDecodeSpi(gpointer data);
 
   gboolean SetLanguage(gint32 audioNum);
-  MEDIA_STATUS_T FeedStream (guint8 * pBuffer, guint32 bufferSize,
-                             guint64 pts, MEDIA_DATA_CHANNEL_T esData);
+  
+	MEDIA_STATUS_T CheckBufferAvailable(MEDIA_SRC_ELEM_IDX_T chIdx, gboolean *pbBufferAvailable, guint32 reqBufferSize);
+  MEDIA_STATUS_T IsPossibleFeed(MEDIA_DATA_CHANNEL_T esData, guint32 reqBufferSize);
+  MEDIA_STATUS_T FeedStream (guint8 * pBuffer, guint32 bufferSize, guint64 pts, MEDIA_DATA_CHANNEL_T esData);
+
+  MEDIA_STATUS_T PushEOS( );
 
   GstElement getInstance () const;
   GString errorString () const;
