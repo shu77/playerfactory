@@ -782,6 +782,27 @@ void GenericPipeline::handleStateMsgPauseSpi_pre(gpointer data)
   updateVideoInfoSpi(self);  // <-- TODO : Check...!!!!
   registerUnderrunSignalHandlerSpi(self); // <-- TODO : Check...!!!!
 }
+
+void GenericPipeline::handlePlayEndSpi(gpointer data){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if(self->m_playbackRate >= 0){
+  // forward direction EOS.
+
+  }
+  else{
+    self->setPlaybackRate (self, 1.0);
+  // backward direction EOS.
+  }
+  self->pause();
+
+}
+void GenericPipeline::handlePlayErrorSpi(gpointer data){
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  LOG_FUNCTION_SCOPE_NORMAL_D ("GenericPipeline");
+  if(self->bUserStop == false)
+    self->pause();
+}
 /*
 gboolean GenericPipeline::checkTimeToDecodeSpi(gpointer data)
 {

@@ -301,6 +301,11 @@ public:
   gboolean notifyVideoTrackUpdate(gpointer data, bool hasVideo, guint64 width, guint64 height);
   gboolean notifyAudioTrackUpdate(gpointer data, bool hasAudio);
 
+  void handlePlayEnd(gpointer data);
+  virtual void handlePlayEndSpi(gpointer data){}
+  void handlePlayError(gpointer data);
+  virtual void handlePlayErrorSpi(gpointer data){}
+ 
   void stateChanged (Pipeline::State state);
   void seekableStateChanged (bool seekable);
   void playbackRateChanged (gfloat rate);

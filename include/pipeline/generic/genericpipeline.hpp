@@ -51,6 +51,9 @@ namespace mediapipeline
     void handleStateMsgPauseSpi_pre(gpointer data);
     void registerUnderrunSignalHandlerSpi(gpointer data);
     //gboolean checkTimeToDecodeSpi(gpointer data);
+    void handlePlayEndSpi(gpointer data);
+    void handlePlayErrorSpi(gpointer data);
+
 
     //multi track audio, multi angle video APIs
     gboolean freeGList(GList *pList);

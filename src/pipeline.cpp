@@ -139,6 +139,8 @@ gboolean Pipeline::unload ()
   LOG_FUNCTION_SCOPE_NORMAL_D ("Pipeline");
   GstStateChangeReturn retVal = GST_STATE_CHANGE_SUCCESS;
   
+  bUserStop = true;
+  
   stop ();
   informationMonitorStop();
   disconnectGstBusCallback();
@@ -159,7 +161,7 @@ gboolean Pipeline::unload ()
   }
   else
   {
-    g_print("%s pPipeContainerHandle->player already uninitialized!!!! \n", __FUNCTION__);
+    g_print("%s m_pipeHandle already uninitialized!!!! \n", __FUNCTION__);
   }
   unloadSpi();
   m_bPlaybackStopped = TRUE;
@@ -189,10 +191,9 @@ gboolean Pipeline::pause ()
     }
 		else if (retVal == GST_STATE_CHANGE_NO_PREROLL)
 		{
-			// RTSP 의 경우 NO_PREROLL 리턴함.
-			// Live/VOD 가 있으므로 seek 은 가능하며
-			// 프로토콜 특성상 버퍼링 걸지 말아야 함. (from 박준수Y)
-			// Live/VOD 구분: duration 이 올라오는지 여부로 판단 가능함.
+			// RTSP 의 경우 NO_PREROLL return.
+			// Live/VOD 가 있으므로 seek 은 가능하며 프로토콜 특성상 버퍼링 걸지 말아야 함.
+			// Live/VOD 구분: duration 이 올라오는지 여부로 판단 가능.
 			g_print("[%s:%d] NO_PREROLL - Live Streaming!\n", __FUNCTION__, __LINE__);
 			m_bLiveStreaming = TRUE;
 			m_source_bIsValidDuration = FALSE;
@@ -753,6 +754,17 @@ Options::bsp_t Pipeline::getOptionsHandler ()
 }
 
 /*------------------ start event functions -----------------------------------------------------*/
+void Pipeline::handlePlayEnd (gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  self->handlePlayEndSpi(self);
+}
+void Pipeline::handlePlayError (gpointer data)
+{
+  Pipeline *self = reinterpret_cast < Pipeline * >(data);
+  self->handlePlayErrorSpi(self);
+  
+}
 gboolean Pipeline::notifyPipelineEvent (gpointer data, MEDIA_CB_MSG_T msg)
 {
   Pipeline *self = reinterpret_cast < Pipeline * >(data);
@@ -770,6 +782,7 @@ gboolean Pipeline::notifyPipelineEvent (gpointer data, MEDIA_CB_MSG_T msg)
       self->notifyStateUpdate(self, (const char *)"pause", true);
       break;
     case MEDIA_CB_MSG_PLAYEND :
+      self->handlePlayEnd(self); // handling play end.
       self->notifyStateUpdate(self, (const char *)"eos",true);
       break;
     case MEDIA_CB_MSG_SEEK_DONE :
@@ -782,6 +795,7 @@ gboolean Pipeline::notifyPipelineEvent (gpointer data, MEDIA_CB_MSG_T msg)
   (msg>MEDIA_CB_MSG_START_GST_MSG && msg<MEDIA_CB_MSG_END_GST_MSG) || 
   (msg>=MEDIA_CB_MSG_ERR_HLS_302 && msg<=MEDIA_CB_MSG_ERR_HLS_KEYFILE_SIZE_ZERO))
   {
+    self->handlePlayError(self);
     self->notifyErrorUpdate(self, (gint64)msg);
   }
   g_print("[L]<<<<<<<<<<<<%s ctx handle[%p] \r\n", __FUNCTION__, self->m_pipeHandle);
@@ -1589,21 +1603,18 @@ void Pipeline::handlePlayerMsg_AsyncDone(gpointer data)
     self->m_bIsSeeking = FALSE;
     g_print("[BUS ASYNCDONE] cur state=%d\n", self->m_gstPipelineState);
     self->notifyPipelineEvent(self, MEDIA_CB_MSG_SEEK_DONE);
-#if 0 // TODO.. seek mutex handling.
     /* When a seek has finished, set the playing state again */
     g_mutex_lock (self->m_seek_mutex);
-
     self->m_seek_req_time = gst_clock_get_internal_time (self->m_clock);
     newSeekTime = self->m_seek_time;
     self->m_seek_time = -1;
-
     g_mutex_unlock (self->m_seek_mutex);
-#endif
+
     if (newSeekTime >= 0)
     {
       g_print ("[BUS] Have an old seek to schedule, doing it now \r\n");
       self->m_bIsSeeking = TRUE;
-      //TODO //if(self->seek(self, (UINT32)(newSeekTime), 0, NULL)==FALSE)
+      if(self->seekCommon_core((guint64)(newSeekTime), GstSeekFlags(0), NULL)==FALSE) // TODO : <- check, self arg.?
       {
         g_print ("[BUS ASYNCDONE][%s:%d] Seek fail!!! \r\n", __FUNCTION__,__LINE__);
         self->m_bIsSeeking = FALSE;
