@@ -3,7 +3,7 @@ lib_LTLIBRARIES = libpf.la
 #INCLUDES = -I$(top_srcdir)/include
 
 # sources used to compile this player factory
-libpf_la_SOURCES = abstractplayer.cpp custompipeline.cpp customplayer.cpp genericpipeline.cpp genericplayer.cpp options.cpp pipeline.cpp playerfactory.cpp
+libpf_la_SOURCES = abstractplayer.cpp custompipeline.cpp customplayer.cpp genericpipeline.cpp genericplayer.cpp options.cpp pipeline.cpp playerfactory.cpp dlnapipeline.cpp dlnaplayer.cpp
 
 # compiler and linker flags used to compile this plugin, set in configure.ac
 libpf_la_CXXFLAGS =			\
